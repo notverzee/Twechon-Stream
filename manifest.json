@@ -1,0 +1,32 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Twechon Stream",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "short_name": "Twechon Stream",
+  "start_url": "/Home/",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "https://stream.twechon.com/favicon.ico",
+      "type": "image/x-icon",
+      "isSquare": false,
+      "isPng": false,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 0,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
+    }
+  ],
+  "id": "twechonstream",
+  "description": "The official streaming siite for all things Twechon.",
+  "lang": "en",
+  "categories": [
+    "entertainment",
+    "news"
+  ]
+}

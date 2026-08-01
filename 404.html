@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Page Not Found — Twechon Stream</title>
+  <link rel="shortcut icon" type="image/x-icon" href="/assets/verzeefavicon.png">
+  <link rel="stylesheet" href="/stream.css">
+</head>
+<body>
+  <main id="main-content">
+    <div class="dev-gate" style="margin-top:120px;">
+      <div class="dev-gate-title" id="nf-title">Page Not Found</div>
+      <div class="dev-gate-sub" id="nf-message">
+        That page doesn't exist. Checking for a case-mismatch before giving up…
+      </div>
+      <a class="settings-btn primary" href="/Home/" style="width:100%;justify-content:center;box-sizing:border-box;">← Back to Twechon Stream</a>
+    </div>
+  </main>
+
+  <script>
+    /* ══════════════════════════════════════════════════════════
+       Case-insensitive fallback for hosts that don't honor .htaccess
+       (Nginx, GitHub Pages, Netlify, etc). If the requested path is
+       just a wrong-cased version of a real page, redirect straight
+       to the correctly-cased URL instead of showing a dead end.
+    ══════════════════════════════════════════════════════════ */
+    (function() {
+      var CASED = { home: 'Home', browse: 'Browse', show: 'Show', settings: 'Settings', dev: 'Dev', submit: 'Submit' };
+      var segments = window.location.pathname.split('/').filter(Boolean);
+      var first = (segments[0] || '').toLowerCase();
+
+      if (CASED.hasOwnProperty(first)) {
+        var rest = segments.slice(1).join('/');
+        var target = '/' + CASED[first] + '/' + rest + window.location.search + window.location.hash;
+        document.getElementById('nf-message').textContent = 'Found it — redirecting to the right page…';
+        window.location.replace(target);
+        return;
+      }
+
+      document.getElementById('nf-message').textContent = "That page doesn't exist here — head back to the homepage below.";
+    })();
+  </script>
+</body>
+</html>
