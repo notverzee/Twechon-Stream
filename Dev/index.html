@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Developer Mode — Twechon Stream</title>
+  <link rel="shortcut icon" type="image/x-icon" href="/assets/verzeefavicon.png">
+  <link rel="stylesheet" href="/stream.css">
+</head>
+<body>
+
+  <canvas id="star-canvas"></canvas>
+
+  <header>
+    <a class="brand" href="/Home/">
+      <img src="https://twechon.com/assets/twechon.png" alt="Twechon">
+      <span class="brand-name">Twechon</span>
+      <span class="brand-sub">Stream</span>
+    </a>
+    <nav class="header-nav">
+      <a class="header-nav-link" href="/Home/"><span class="nav-label">Home</span></a>
+      <a class="header-nav-link" href="/Browse/"><span class="nav-label">Browse</span></a>
+      <a class="header-nav-link" href="/Settings/"><span class="nav-label">Settings</span></a>
+    </nav>
+    <div class="header-right">
+      <div class="auth-area" id="auth-area"></div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <div id="dev-gate-wrap">
+      <div class="dev-gate">
+        <div class="dev-gate-title">🛠 Developer Mode</div>
+        <div class="dev-gate-sub">This page isn't linked anywhere else on the site. Enter the passcode set in <code>stream-common.js</code> to continue.</div>
+        <input type="password" id="dev-passcode" placeholder="Passcode" autocomplete="off">
+        <div class="dev-gate-error" id="dev-gate-error"></div>
+        <button type="button" class="settings-btn primary" id="dev-unlock-btn" style="width:100%;justify-content:center;">Unlock</button>
+      </div>
+    </div>
+
+    <div id="dev-panel" style="display:none;">
+      <div class="settings-title">Developer Mode</div>
+
+      <div class="dev-banner">
+        🔓 Unlocked for this browser session.
+        <button type="button" class="settings-btn" id="dev-lock-btn">Lock</button>
+      </div>
+
+      <div class="tab-bar" id="dev-tab-bar">
+        <button type="button" class="tab-btn active" data-devtab="newsletters">📰 Newsletters</button>
+        <button type="button" class="tab-btn" data-devtab="shows-channels">🎬 Shows &amp; Channels</button>
+      </div>
+
+      <div id="dev-tab-newsletters" data-devtab="newsletters">
+      <div class="settings-card" style="max-width:720px;">
+        <div class="settings-card-title">How this works</div>
+        <div class="settings-card-desc">
+          Each slot now produces <b>three</b> files. Fill in the fields below and watch the homepage-banner preview update as you type,
+          then download all three: <code>News1.txt</code> (short version — feeds the homepage banner and the notification bell),
+          <code>News1.png</code> (the banner image), and an <code>index.html</code> (the full article page people land on when they click
+          "Learn More" or a notification). Upload the <code>.txt</code> and <code>.png</code> straight into <code>assets/news/</code> on your
+          server, same names, overwriting what's there. Upload the <code>index.html</code> into a folder named <code>/news/1/</code> (or
+          <code>/news/2/</code>, <code>/news/3/</code> — matching the slot), creating that folder if it doesn't exist yet. Your edits here
+          are just a local drafting tool — nothing goes live until you upload all the files.
+        </div>
+      </div>
+
+      <div class="settings-card" style="max-width:720px;">
+        <div class="settings-card-title">📦 Download Everything as One ZIP</div>
+        <div class="settings-card-desc">
+          Packages all three slots' current drafts at once — <code>assets/news/News1.txt</code>, <code>News1.png</code>, <code>News2.txt</code>,
+          <code>News2.png</code>, <code>news3.txt</code>, <code>news3.png</code>, plus <code>news/1/index.html</code>, <code>news/2/index.html</code>,
+          <code>news/3/index.html</code> — matching the exact folder layout of the live site, so you can unzip and drop it straight in. Also
+          includes a flat, conveniently-named copy of each article (e.g. <code>Season 2 In Production.html</code>) for your own reference.
+          Only slots with a headline, short description, full description, link, and image filled in are included.
+        </div>
+        <div class="settings-row"><button type="button" class="settings-btn primary" id="dev-zip-btn">Download All as ZIP</button></div>
+        <div class="settings-status" id="dev-zip-status"></div>
+      </div>
+
+      <div id="dev-news-slots"></div>
+      </div>
+
+      <div id="dev-tab-shows-channels" data-devtab="shows-channels" style="display:none;"></div>
+    </div>
+  </main>
+
+  <footer class="stream-footer">
+    &copy; 2026 Twechon &nbsp;·&nbsp;
+    <a href="https://twechon.com/Home/">twechon.com</a> &nbsp;·&nbsp;
+    <a href="mailto:support@twechon.com">support@twechon.com</a>
+  </footer>
+
+  <!-- Auth modal (kept for shared script compatibility) -->
+  <div class="modal-overlay" id="auth-modal" role="dialog" aria-modal="true">
+    <div class="modal-box auth-box">
+      <div class="modal-header">
+        <span class="modal-title" id="auth-modal-title">Account</span>
+        <button class="modal-close" id="auth-modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="auth-tab-login" data-mode="login">Log In</div>
+        <div class="auth-tab" id="auth-tab-signup" data-mode="signup">Sign Up</div>
+      </div>
+      <form class="auth-form" id="login-form">
+        <div class="auth-field"><label>Username</label><input type="text" id="login-username" autocomplete="username" required></div>
+        <div class="auth-field"><label>Password</label><input type="password" id="login-password" autocomplete="current-password" required></div>
+        <div class="auth-error" id="login-error"></div>
+        <button type="submit" class="auth-submit">Log In</button>
+      </form>
+      <form class="auth-form hidden" id="signup-form">
+        <div class="auth-field"><label>Username</label><input type="text" id="signup-username" autocomplete="username" required minlength="3"></div>
+        <div class="auth-field"><label>Password</label><input type="password" id="signup-password" autocomplete="new-password" required minlength="4"></div>
+        <div class="auth-error" id="signup-error"></div>
+        <button type="submit" class="auth-submit">Create Account</button>
+        <div class="auth-note">Accounts, bookmarks, playlists, and watch progress are saved only in this browser.</div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Video / playlist modals (kept for shared script compatibility, unused here) -->
+  <div class="modal-overlay" id="modal" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="modal-header"><span class="modal-title" id="modal-title">—</span><button class="modal-close" id="modal-close" aria-label="Close">✕</button></div>
+      <div class="modal-player"><div id="modal-iframe"></div></div>
+      <div class="modal-queue-nav hidden" id="modal-queue-nav"><button type="button" class="settings-btn" id="modal-prev-btn">‹ Previous Episode</button><span id="modal-queue-position"></span><button type="button" class="settings-btn primary" id="modal-next-btn">Next Episode ›</button></div>
+      <div class="modal-yt-link"><a id="modal-yt-link" href="#" target="_blank" rel="noopener noreferrer">Open on YouTube ↗</a></div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="playlist-modal" role="dialog" aria-modal="true">
+    <div class="modal-box playlist-box">
+      <div class="modal-header"><span class="modal-title">Save to playlist</span><button class="modal-close" id="playlist-modal-close" aria-label="Close">✕</button></div>
+      <div class="playlist-list" id="playlist-list"></div>
+      <div class="playlist-new"><input type="text" id="new-playlist-name" placeholder="New playlist name…" maxlength="60"><button id="new-playlist-btn" type="button">Create</button></div>
+    </div>
+  </div>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="/stream-common.js"></script>
+  <script>
+    /* ══════════════════════════════════════════════════════════
+       DEVELOPER MODE — passcode gate + simplified news editor
+    ══════════════════════════════════════════════════════════ */
+    renderAuthArea();
+
+    var gateWrap   = document.getElementById('dev-gate-wrap');
+    var panel      = document.getElementById('dev-panel');
+    var passInput  = document.getElementById('dev-passcode');
+    var gateError  = document.getElementById('dev-gate-error');
+
+    function showPanel() {
+      gateWrap.style.display = 'none';
+      panel.style.display = '';
+      buildEditor();
+      buildShowsChannelsManager();
+    }
+    function tryUnlock() {
+      if (unlockDev(passInput.value)) { gateError.textContent = ''; showPanel(); }
+      else { gateError.textContent = 'Wrong passcode.'; passInput.value = ''; passInput.focus(); }
+    }
+    document.getElementById('dev-unlock-btn').addEventListener('click', tryUnlock);
+    passInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') tryUnlock(); });
+    document.getElementById('dev-lock-btn').addEventListener('click', function() {
+      lockDev();
+      panel.style.display = 'none';
+      gateWrap.style.display = '';
+      passInput.value = '';
+      passInput.focus();
+    });
+
+    document.getElementById('dev-tab-bar').addEventListener('click', function(e) {
+      var btn = e.target.closest('.tab-btn');
+      if (!btn) return;
+      document.querySelectorAll('#dev-tab-bar .tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var target = btn.dataset.devtab;
+      document.querySelectorAll('[data-devtab]').forEach(function(panelEl) {
+        if (panelEl.id === 'dev-tab-bar') return;
+        panelEl.style.display = (panelEl.dataset.devtab === target) ? '' : 'none';
+      });
+    });
+
+    /* ── News slot editor ── */
+    var SLOTS = [
+      { key: 'news1', num: 1, label: 'News Slot 1 (featured / most recent)', imgFile: 'News1.png', txtFile: 'News1.txt', imgPath: '/assets/news/News1.png', articlePath: '/news/1/' },
+      { key: 'news2', num: 2, label: 'News Slot 2',                          imgFile: 'News2.png', txtFile: 'News2.txt', imgPath: '/assets/news/News2.png', articlePath: '/news/2/' },
+      { key: 'news3', num: 3, label: 'News Slot 3',                          imgFile: 'news3.png', txtFile: 'news3.txt', imgPath: '/assets/news/news3.png', articlePath: '/news/3/' },
+    ];
+    var DRAFT_KEY = 'twechon_dev_news_draft';
+
+    function loadDraft() {
+      try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || {}; } catch (e) { return {}; }
+    }
+    function saveDraft(draft) { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); }
+
+    function buildEditor() {
+      var draft = loadDraft();
+      var container = document.getElementById('dev-news-slots');
+      container.innerHTML = '';
+
+      SLOTS.forEach(function(slot) {
+        var state = draft[slot.key] || { title: '', description: '', fullDescription: '', link: '', imageDataUrl: '' };
+
+        var card = document.createElement('div');
+        card.className = 'dev-news-card';
+        card.innerHTML =
+          '<div class="dev-news-card-title">' + slot.label + '</div>' +
+          '<div class="dev-field"><label>Headline</label><input type="text" data-f="title" maxlength="80"></div>' +
+          '<div class="dev-field"><label>Short Description <span style="text-transform:none;font-weight:400;">— homepage banner</span></label><textarea data-f="description" rows="2" maxlength="200"></textarea></div>' +
+          '<div class="dev-field"><label>Full Description <span style="text-transform:none;font-weight:400;">— the ' + slot.articlePath + ' article page. Leave a blank line between paragraphs.</span></label><textarea data-f="fullDescription" rows="6"></textarea></div>' +
+          '<div class="dev-field"><label>Link <span style="text-transform:none;font-weight:400;">— where the article page\u2019s button goes</span></label><input type="text" data-f="link" placeholder="https://…"></div>' +
+          '<div class="dev-image-row">' +
+            '<div class="dev-image-thumb empty" data-thumb>No image chosen</div>' +
+            '<label class="settings-btn">Choose Image<input type="file" accept="image/*" data-f="image" style="display:none;"></label>' +
+          '</div>' +
+          '<div class="dev-preview-label">Live preview — homepage banner</div>' +
+          '<div class="dev-preview" data-preview><div class="dev-preview-empty">Fill in the fields above to preview this slide</div></div>' +
+          '<div class="dev-btn-row">' +
+            '<button type="button" class="settings-btn primary" data-dl-txt>Download ' + slot.txtFile + '</button>' +
+            '<button type="button" class="settings-btn" data-dl-img disabled>Download ' + slot.imgFile + '</button>' +
+            '<button type="button" class="settings-btn" data-dl-html>Download ' + slot.articlePath + ' page (index.html)</button>' +
+          '</div>' +
+          '<div class="settings-status" data-status></div>';
+
+        container.appendChild(card);
+
+        var titleInput = card.querySelector('[data-f="title"]');
+        var descInput  = card.querySelector('[data-f="description"]');
+        var fullInput  = card.querySelector('[data-f="fullDescription"]');
+        var linkInput  = card.querySelector('[data-f="link"]');
+        var imageInput = card.querySelector('[data-f="image"]');
+        var thumb      = card.querySelector('[data-thumb]');
+        var preview    = card.querySelector('[data-preview]');
+        var dlImgBtn   = card.querySelector('[data-dl-img]');
+        var status     = card.querySelector('[data-status]');
+
+        titleInput.value = state.title;
+        descInput.value = state.description;
+        fullInput.value = state.fullDescription || '';
+        linkInput.value = state.link;
+        if (state.imageDataUrl) {
+          thumb.classList.remove('empty');
+          thumb.innerHTML = '<img src="' + state.imageDataUrl + '" alt="">';
+          dlImgBtn.disabled = false;
+        }
+
+        function currentState() {
+          return {
+            title: titleInput.value,
+            description: descInput.value,
+            fullDescription: fullInput.value,
+            link: linkInput.value,
+            imageDataUrl: state.imageDataUrl || ''
+          };
+        }
+        function persist() {
+          var d = loadDraft();
+          d[slot.key] = currentState();
+          saveDraft(d);
+        }
+        function renderPreview() {
+          var s = currentState();
+          if (!s.title && !s.description && !s.imageDataUrl) {
+            preview.innerHTML = '<div class="dev-preview-empty">Fill in the fields above to preview this slide</div>';
+            return;
+          }
+          preview.innerHTML =
+            (s.imageDataUrl ? '<img src="' + s.imageDataUrl + '" alt="">' : '') +
+            '<div class="news-hero-fade"></div>' +
+            '<div class="news-hero-content">' +
+              '<div class="news-hero-title"></div>' +
+              '<div class="news-hero-desc"></div>' +
+            '</div>';
+          preview.querySelector('.news-hero-title').textContent = s.title || '(no headline yet)';
+          preview.querySelector('.news-hero-desc').textContent = s.description || '';
+        }
+
+        [titleInput, descInput, fullInput, linkInput].forEach(function(el) {
+          el.addEventListener('input', function() { persist(); renderPreview(); });
+        });
+
+        imageInput.addEventListener('change', function() {
+          var file = imageInput.files && imageInput.files[0];
+          if (!file) return;
+          var reader = new FileReader();
+          reader.onload = function() {
+            state.imageDataUrl = reader.result;
+            state._fileName = file.name;
+            thumb.classList.remove('empty');
+            thumb.innerHTML = '<img src="' + reader.result + '" alt="">';
+            dlImgBtn.disabled = false;
+            persist();
+            renderPreview();
+          };
+          reader.readAsDataURL(file);
+        });
+
+        card.querySelector('[data-dl-txt]').addEventListener('click', function() {
+          var s = currentState();
+          if (!s.title.trim() || !s.description.trim() || !s.link.trim()) {
+            status.textContent = 'Fill in headline, description, and link first.';
+            status.className = 'settings-status err';
+            return;
+          }
+          var text = s.title.trim() + '\n' + s.description.trim() + '\n' + s.link.trim() + '\n';
+          var blob = new Blob([text], { type: 'text/plain' });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url; a.download = slot.txtFile;
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+          status.textContent = 'Downloaded ' + slot.txtFile + ' — upload it to assets/news/ on your server.';
+          status.className = 'settings-status ok';
+        });
+
+        dlImgBtn.addEventListener('click', function() {
+          if (!state.imageDataUrl) return;
+          var a = document.createElement('a');
+          a.href = state.imageDataUrl; a.download = slot.imgFile;
+          document.body.appendChild(a); a.click(); a.remove();
+          status.textContent = 'Downloaded ' + slot.imgFile + ' — upload it to assets/news/ on your server.';
+          status.className = 'settings-status ok';
+        });
+
+        card.querySelector('[data-dl-html]').addEventListener('click', function() {
+          var s = currentState();
+          if (!s.title.trim() || !s.fullDescription.trim() || !s.link.trim()) {
+            status.textContent = 'Fill in headline, full description, and link first.';
+            status.className = 'settings-status err';
+            return;
+          }
+          var html = buildArticleHtml(slot, s);
+          var blob = new Blob([html], { type: 'text/html' });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url; a.download = 'index.html';
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+          status.textContent = 'Downloaded index.html — upload it to a folder named ' + slot.articlePath + ' on your server (creating the folder if it doesn\u2019t exist yet), overwriting what\u2019s there.';
+          status.className = 'settings-status ok';
+        });
+
+        renderPreview();
+      });
+    }
+
+    /* ── Build the standalone article page HTML for a news slot ── */
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+    function paragraphsHtml(text) {
+      return text.split(/\n\s*\n/).map(function(block) {
+        var line = block.trim();
+        if (!line) return '';
+        return '<p>' + escapeHtml(line).replace(/\n/g, '<br>') + '</p>';
+      }).filter(function(p) { return p; }).join('\n      ');
+    }
+    function buildArticleHtml(slot, s) {
+      var title = escapeHtml(s.title.trim());
+      var shortDesc = escapeHtml(s.description.trim());
+      var body = paragraphsHtml(s.fullDescription);
+      var link = escapeHtml(s.link.trim());
+      var image = slot.imgPath;
+
+      return '<!DOCTYPE html>\n' +
+'<html lang="en">\n' +
+'<head>\n' +
+'  <meta charset="UTF-8">\n' +
+'  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+'  <title>' + title + ' \u2014 Twechon Stream</title>\n' +
+'  <link rel="shortcut icon" type="image/x-icon" href="/assets/verzeefavicon.png">\n' +
+'  <meta name="description" content="' + shortDesc + '">\n' +
+'  <link rel="stylesheet" href="/stream.css">\n' +
+'</head>\n' +
+'<body>\n' +
+'  <header>\n' +
+'    <a class="brand" href="/Home/">\n' +
+'      <img src="https://twechon.com/assets/twechon.png" alt="Twechon">\n' +
+'      <span class="brand-name">Twechon</span>\n' +
+'      <span class="brand-sub">Stream</span>\n' +
+'    </a>\n' +
+'    <nav class="header-nav">\n' +
+'      <a class="header-nav-link" href="/Home/"><span class="nav-label">Home</span></a>\n' +
+'      <a class="header-nav-link" href="/Browse/"><span class="nav-label">Browse</span></a>\n' +
+'      <a class="header-nav-link" href="/Settings/"><span class="nav-label">Settings</span></a>\n' +
+'    </nav>\n' +
+'    <div class="header-right">\n' +
+'      <a class="header-back" href="/Home/" style="margin-left:0;">\u2190 Back to Home</a>\n' +
+'    </div>\n' +
+'  </header>\n' +
+'\n' +
+'  <main id="main-content">\n' +
+'    <div class="article-hero"><img src="' + image + '" alt="' + title + '"></div>\n' +
+'    <div class="article-eyebrow">News</div>\n' +
+'    <div class="article-title">' + title + '</div>\n' +
+'    <div class="article-body">\n' +
+'      ' + body + '\n' +
+'    </div>\n' +
+'    <div class="article-actions">\n' +
+'      <a class="news-hero-btn" href="' + link + '" target="_blank" rel="noopener noreferrer">Learn More <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 18l6-6-6-6"/></svg></a>\n' +
+'    </div>\n' +
+'  </main>\n' +
+'\n' +
+'  <footer class="stream-footer">\n' +
+'    &copy; 2026 Twechon &nbsp;\u00b7&nbsp;\n' +
+'    <a href="https://twechon.com/Home/">twechon.com</a> &nbsp;\u00b7&nbsp;\n' +
+'    <a href="mailto:support@twechon.com">support@twechon.com</a>\n' +
+'  </footer>\n' +
+'</body>\n' +
+'</html>\n';
+    }
+
+    /* ── Download everything as one ZIP, mirroring the live site layout ── */
+    document.getElementById('dev-zip-btn').addEventListener('click', function() {
+      var zipStatus = document.getElementById('dev-zip-status');
+      if (typeof JSZip === 'undefined') {
+        zipStatus.textContent = 'Could not load the zip library — check your internet connection and try again.';
+        zipStatus.className = 'settings-status err';
+        return;
+      }
+      var draft = loadDraft();
+      var zip = new JSZip();
+      var newsFolder = zip.folder('assets').folder('news');
+      var includedCount = 0;
+
+      SLOTS.forEach(function(slot) {
+        var s = draft[slot.key];
+        if (!s) return;
+        var hasBanner = s.title && s.title.trim() && s.description && s.description.trim() && s.link && s.link.trim();
+        var hasArticle = s.title && s.title.trim() && s.fullDescription && s.fullDescription.trim() && s.link && s.link.trim();
+        if (!hasBanner && !hasArticle) return;
+
+        if (hasBanner) {
+          newsFolder.file(slot.txtFile, s.title.trim() + '\n' + s.description.trim() + '\n' + s.link.trim() + '\n');
+        }
+        if (s.imageDataUrl) {
+          var base64 = s.imageDataUrl.split(',')[1];
+          newsFolder.file(slot.imgFile, base64, { base64: true });
+        }
+        if (hasArticle) {
+          var html = buildArticleHtml(slot, s);
+          zip.folder('news').folder(String(slot.num)).file('index.html', html);
+          zip.file(s.title.trim() + '.html', html); // flat, title-named copy for reference
+        }
+        includedCount++;
+      });
+
+      if (!includedCount) {
+        zipStatus.textContent = 'Nothing to zip yet — fill in at least one slot first.';
+        zipStatus.className = 'settings-status err';
+        return;
+      }
+
+      zip.generateAsync({ type: 'blob' }).then(function(blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'twechon-news-update.zip';
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        zipStatus.textContent = 'Downloaded twechon-news-update.zip — unzip and merge its assets/ and news/ folders into your site root, overwriting matching files.';
+        zipStatus.className = 'settings-status ok';
+      }).catch(function() {
+        zipStatus.textContent = 'Something went wrong building the zip — try again.';
+        zipStatus.className = 'settings-status err';
+      });
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       SHOWS & CHANNELS MANAGER — add new category tabs, and add new
+       shows/channels with their own logo, poster, description, and
+       category. Download rewrites stream-common.js with everything
+       merged in and bundles the new images into their correct folders.
+    ══════════════════════════════════════════════════════════ */
+    var SC_DRAFT_KEY = 'twechon_dev_sc_draft';
+    function loadScDraft() {
+      try {
+        var d = JSON.parse(localStorage.getItem(SC_DRAFT_KEY)) || {};
+        if (!d.categories) d.categories = [];
+        if (!d.entries) d.entries = [];
+        if (!d.orderEdits) d.orderEdits = {}; // { "slug": newOrderNumber }
+        return d;
+      } catch (e) { return { categories: [], entries: [], orderEdits: {} }; }
+    }
+    function saveScDraft(d) { localStorage.setItem(SC_DRAFT_KEY, JSON.stringify(d)); }
+    function getEffectiveOrder(entry) {
+      var d = loadScDraft();
+      return d.orderEdits.hasOwnProperty(entry.slug) ? d.orderEdits[entry.slug] : entry.order;
+    }
+    function scSlugify(name) {
+      return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '');
+    }
+    function fileToPngDataUrl(file, maxSize, callback) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+          var scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          callback(canvas.toDataURL('image/png'));
+        };
+        img.onerror = function() { callback(null); };
+        img.src = e.target.result;
+      };
+      reader.onerror = function() { callback(null); };
+      reader.readAsDataURL(file);
+    }
+
+    var currentEntryType = 'show';
+    var entryLogoDataUrl = null;
+    var entryPosterDataUrl = null;
+
+    function buildShowsChannelsManager() {
+      var root = document.getElementById('dev-tab-shows-channels');
+      if (!root.dataset.built) {
+        root.dataset.built = '1';
+        root.innerHTML =
+          '<div class="settings-card" style="max-width:720px;">' +
+            '<div class="settings-card-title">How this works</div>' +
+            '<div class="settings-card-desc">' +
+              'Add new category tabs and new shows/channels below — everything stays as a local draft (saved in this browser) until you ' +
+              'click Download. That fetches the live <code>stream-common.js</code>, merges your additions into it, and bundles a zip with ' +
+              'the updated file plus every logo/poster you picked, already placed in the right folders. Upload the zip\u2019s contents over ' +
+              'your site (overwriting <code>stream-common.js</code>) and the new tabs/entries appear on Browse immediately.' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="settings-card" style="max-width:720px;">' +
+            '<div class="settings-card-title">Categories (Tabs)</div>' +
+            '<div class="settings-card-desc">Show categories become tabs like \u201cOriginal Shows\u201d; channel categories become tabs like \u201cTwechon Channels\u201d.</div>' +
+            '<div class="dev-categories-grid">' +
+              '<div>' +
+                '<div style="font-weight:700;font-size:.82rem;margin-bottom:8px;">Show Categories</div>' +
+                '<div class="dev-category-list" id="dev-show-categories"></div>' +
+                '<div class="playlist-new"><input type="text" id="dev-new-show-cat" placeholder="New show category name\u2026" maxlength="60"><button type="button" id="dev-add-show-cat-btn">Add</button></div>' +
+              '</div>' +
+              '<div>' +
+                '<div style="font-weight:700;font-size:.82rem;margin-bottom:8px;">Channel Categories</div>' +
+                '<div class="dev-category-list" id="dev-channel-categories"></div>' +
+                '<div class="playlist-new"><input type="text" id="dev-new-channel-cat" placeholder="New channel category name\u2026" maxlength="60"><button type="button" id="dev-add-channel-cat-btn">Add</button></div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="settings-card" style="max-width:720px;">' +
+            '<div class="settings-card-title">Add a Show or Channel</div>' +
+            '<div class="dev-type-toggle">' +
+              '<button type="button" id="dev-type-show" class="active">\ud83c\udfac Show</button>' +
+              '<button type="button" id="dev-type-channel">\ud83d\udcfa Channel</button>' +
+            '</div>' +
+            '<div class="dev-field"><label>Name</label><input type="text" id="dev-entry-name" maxlength="80"></div>' +
+            '<div class="dev-field"><label>Category</label><select id="dev-entry-category"></select></div>' +
+            '<div class="dev-field">' +
+              '<label>Order <span style="text-transform:none;font-weight:400;">— position within this category, lower shows first</span></label>' +
+              '<input type="number" id="dev-entry-order" min="1" step="1">' +
+              '<div class="dev-taken-slots" id="dev-taken-slots"></div>' +
+            '</div>' +
+            '<div class="dev-field"><label id="dev-entry-id-label">YouTube Playlist ID</label><input type="text" id="dev-entry-id" placeholder="PLxxxxxxxx"></div>' +
+            '<div class="dev-field" id="dev-entry-handle-field" style="display:none;"><label>Handle (optional)</label><input type="text" id="dev-entry-handle" placeholder="@channelname"></div>' +
+            '<div class="dev-field"><label>Description</label><textarea id="dev-entry-description" rows="3"></textarea></div>' +
+            '<div class="dev-image-row">' +
+              '<div class="dev-image-thumb empty" id="dev-entry-logo-thumb">No logo</div>' +
+              '<label class="settings-btn">Choose Logo<input type="file" accept="image/*" id="dev-entry-logo-input" style="display:none;"></label>' +
+            '</div>' +
+            '<div class="dev-image-row">' +
+              '<div class="dev-image-thumb empty" id="dev-entry-poster-thumb">No poster</div>' +
+              '<label class="settings-btn">Choose Poster<input type="file" accept="image/*" id="dev-entry-poster-input" style="display:none;"></label>' +
+            '</div>' +
+            '<div class="settings-row"><button type="button" class="settings-btn primary" id="dev-add-entry-btn">Add to Pending List</button></div>' +
+            '<div class="settings-status" id="dev-entry-status"></div>' +
+          '</div>' +
+
+          '<div class="settings-card" style="max-width:720px;">' +
+            '<div class="settings-card-title">Reorder Existing Shows &amp; Channels</div>' +
+            '<div class="settings-card-desc">Change the number next to any entry to move it within its category — lower shows first. Two entries sharing a number in the same category are highlighted until you fix it.</div>' +
+            '<div id="dev-reorder-list"></div>' +
+          '</div>' +
+
+          '<div class="settings-card" style="max-width:720px;">' +
+            '<div class="settings-card-title">Pending Entries</div>' +
+            '<div class="settings-card-desc" id="dev-pending-empty">Nothing added yet.</div>' +
+            '<div class="dev-pending-list" id="dev-pending-list"></div>' +
+          '</div>' +
+
+          '<div class="settings-card" style="max-width:720px;">' +
+            '<div class="settings-card-title">\ud83d\udce6 Download Updated Site Files</div>' +
+            '<div class="settings-card-desc">' +
+              'Packages an updated <code>stream-common.js</code> (your new categories and entries merged in) plus every new logo ' +
+              '(<code>assets/</code>) and poster (<code>assets/posters/</code>) you picked above.' +
+            '</div>' +
+            '<div class="settings-row">' +
+              '<button type="button" class="settings-btn primary" id="dev-sc-zip-btn">Download Updated stream-common.js + Assets</button>' +
+              '<button type="button" class="settings-btn" id="dev-sc-clear-btn">Clear Pending Draft</button>' +
+            '</div>' +
+            '<div class="settings-status" id="dev-sc-zip-status"></div>' +
+          '</div>';
+
+        wireShowsChannelsManager();
+      }
+      renderScCategories();
+      renderReorderList();
+      renderScPending();
+    }
+
+    function getAllCategories(type) {
+      var base = (type === 'show' ? SHOW_CATEGORIES : CHANNEL_CATEGORIES).slice();
+      var draft = loadScDraft();
+      draft.categories.filter(function(c) { return c.type === type; }).forEach(function(c) { base.push({ key: c.key, label: c.label }); });
+      return base;
+    }
+    function renderScCategoryOptions() {
+      var sel = document.getElementById('dev-entry-category');
+      var prev = sel.value;
+      sel.innerHTML = '';
+      getAllCategories(currentEntryType).forEach(function(cat) {
+        var opt = document.createElement('option');
+        opt.value = cat.key; opt.textContent = cat.label;
+        sel.appendChild(opt);
+      });
+      if (prev) sel.value = prev;
+      renderTakenSlots();
+    }
+    function getTakenOrders(type, categoryKey) {
+      var live = (type === 'show' ? SHOWS : CHANNELS)
+        .filter(function(x) { return x.category === categoryKey; })
+        .map(function(x) { return getEffectiveOrder(x); });
+      var pending = loadScDraft().entries
+        .filter(function(e) { return e.type === type && e.category === categoryKey; })
+        .map(function(e) { return e.order || 0; });
+      return live.concat(pending).sort(function(a, b) { return a - b; });
+    }
+    function renderTakenSlots() {
+      var sel = document.getElementById('dev-entry-category');
+      var orderInput = document.getElementById('dev-entry-order');
+      var out = document.getElementById('dev-taken-slots');
+      if (!sel || !sel.value) { out.innerHTML = ''; return; }
+      var taken = getTakenOrders(currentEntryType, sel.value);
+      var next = taken.length ? Math.max.apply(null, taken) + 1 : 1;
+      out.innerHTML = taken.length
+        ? 'Taken in this category: <b>' + taken.join(', ') + '</b> — next free: <span class="free">' + next + '</span>'
+        : '<span class="free">No entries yet in this category — 1 is free.</span>';
+      if (!orderInput.value || orderInput.dataset.auto === '1') {
+        orderInput.value = next;
+        orderInput.dataset.auto = '1';
+      }
+    }
+    function categoryChip(type, key, label, removable) {
+      var chip = document.createElement('div');
+      chip.className = 'dev-category-chip';
+      chip.innerHTML = '<span>' + escapeHtml(label) + ' <span class="dev-category-key">(' + escapeHtml(key) + ')</span></span>' +
+        (removable ? '<button type="button" class="dev-pending-remove">Remove</button>' : '<span class="dev-category-key">live</span>');
+      if (removable) {
+        chip.querySelector('button').addEventListener('click', function() {
+          var d = loadScDraft();
+          d.categories = d.categories.filter(function(c) { return !(c.type === type && c.key === key); });
+          saveScDraft(d);
+          renderScCategories();
+        });
+      }
+      return chip;
+    }
+    function renderScCategories() {
+      var showList = document.getElementById('dev-show-categories');
+      var channelList = document.getElementById('dev-channel-categories');
+      var draft = loadScDraft();
+
+      showList.innerHTML = '';
+      SHOW_CATEGORIES.forEach(function(c) { showList.appendChild(categoryChip('show', c.key, c.label, false)); });
+      draft.categories.filter(function(c) { return c.type === 'show'; })
+        .forEach(function(c) { showList.appendChild(categoryChip('show', c.key, c.label, true)); });
+
+      channelList.innerHTML = '';
+      CHANNEL_CATEGORIES.forEach(function(c) { channelList.appendChild(categoryChip('channel', c.key, c.label, false)); });
+      draft.categories.filter(function(c) { return c.type === 'channel'; })
+        .forEach(function(c) { channelList.appendChild(categoryChip('channel', c.key, c.label, true)); });
+
+      renderScCategoryOptions();
+    }
+
+    function renderReorderList() {
+      var root = document.getElementById('dev-reorder-list');
+      root.innerHTML = '';
+      var draft = loadScDraft();
+      var any = false;
+
+      function group(categories, items, type) {
+        categories.forEach(function(cat) {
+          var inCat = items.filter(function(x) { return x.category === cat.key; });
+          if (!inCat.length) return;
+          any = true;
+          var heading = document.createElement('div');
+          heading.className = 'dev-reorder-group-title';
+          heading.textContent = cat.label;
+          root.appendChild(heading);
+
+          var sorted = inCat.slice().sort(function(a, b) { return getEffectiveOrder(a) - getEffectiveOrder(b); });
+          // Detect duplicate effective order values within this category
+          var counts = {};
+          sorted.forEach(function(x) { var v = getEffectiveOrder(x); counts[v] = (counts[v] || 0) + 1; });
+
+          sorted.forEach(function(entry) {
+            var row = document.createElement('div');
+            var val = getEffectiveOrder(entry);
+            row.className = 'dev-reorder-row' + (counts[val] > 1 ? ' conflict' : '');
+            row.innerHTML =
+              '<span class="dev-reorder-name"></span>' +
+              '<input type="number" class="dev-reorder-input" min="1" step="1">';
+            row.querySelector('.dev-reorder-name').textContent = entry.name;
+            var input = row.querySelector('.dev-reorder-input');
+            input.value = val;
+            input.addEventListener('change', function() {
+              var n = parseInt(input.value, 10);
+              if (!n || n < 1) { input.value = val; return; }
+              var d = loadScDraft();
+              if (n === entry.order) delete d.orderEdits[entry.slug]; // back to original — no edit needed
+              else d.orderEdits[entry.slug] = n;
+              saveScDraft(d);
+              renderReorderList();
+              renderTakenSlots();
+            });
+            root.appendChild(row);
+          });
+        });
+      }
+
+      group(SHOW_CATEGORIES, SHOWS, 'show');
+      group(CHANNEL_CATEGORIES, CHANNELS, 'channel');
+
+      if (!any) {
+        var empty = document.createElement('div');
+        empty.className = 'dev-reorder-empty';
+        empty.textContent = 'Nothing to reorder yet.';
+        root.appendChild(empty);
+      }
+    }
+
+    function renderScPending() {
+      var d = loadScDraft();
+      var list = document.getElementById('dev-pending-list');
+      var emptyMsg = document.getElementById('dev-pending-empty');
+      list.innerHTML = '';
+      if (!d.entries.length) { emptyMsg.style.display = ''; return; }
+      emptyMsg.style.display = 'none';
+      d.entries.forEach(function(entry, idx) {
+        var item = document.createElement('div');
+        item.className = 'dev-pending-item';
+        item.innerHTML =
+          '<div class="dev-pending-thumb">' + (entry.logoDataUrl ? '<img src="' + entry.logoDataUrl + '" alt="">' : '') + '</div>' +
+          '<div class="dev-pending-info"><div class="dev-pending-name"></div><div class="dev-pending-meta"></div></div>' +
+          '<button type="button" class="dev-pending-remove">Remove</button>';
+        item.querySelector('.dev-pending-name').textContent = entry.name + (entry.type === 'show' ? ' (Show)' : ' (Channel)');
+        item.querySelector('.dev-pending-meta').textContent = 'Category: ' + entry.category + ' (order ' + entry.order + ')  ·  ID: ' + entry.id;
+        item.querySelector('.dev-pending-remove').addEventListener('click', function() {
+          var dd = loadScDraft();
+          dd.entries.splice(idx, 1);
+          saveScDraft(dd);
+          renderScPending();
+        });
+        list.appendChild(item);
+      });
+    }
+
+    function wireShowsChannelsManager() {
+      function setEntryType(type) {
+        currentEntryType = type;
+        document.getElementById('dev-type-show').classList.toggle('active', type === 'show');
+        document.getElementById('dev-type-channel').classList.toggle('active', type === 'channel');
+        document.getElementById('dev-entry-id-label').textContent = type === 'show' ? 'YouTube Playlist ID' : 'YouTube Channel ID';
+        document.getElementById('dev-entry-handle-field').style.display = type === 'channel' ? '' : 'none';
+        renderScCategoryOptions();
+      }
+      document.getElementById('dev-type-show').addEventListener('click', function() { setEntryType('show'); });
+      document.getElementById('dev-type-channel').addEventListener('click', function() { setEntryType('channel'); });
+      document.getElementById('dev-entry-category').addEventListener('change', renderTakenSlots);
+      document.getElementById('dev-entry-order').addEventListener('input', function() {
+        this.dataset.auto = '0'; // user is typing their own value — stop auto-filling it
+      });
+
+      function addNewCategory(type, inputEl) {
+        var label = inputEl.value.trim();
+        if (!label) return;
+        var key = scSlugify(label);
+        if (!key) return;
+        var d = loadScDraft();
+        var existingKeys = (type === 'show' ? SHOW_CATEGORIES : CHANNEL_CATEGORIES).map(function(c) { return c.key; })
+          .concat(d.categories.filter(function(c) { return c.type === type; }).map(function(c) { return c.key; }));
+        if (existingKeys.indexOf(key) !== -1) { alert('A ' + type + ' category with that name already exists.'); return; }
+        d.categories.push({ type: type, key: key, label: label });
+        saveScDraft(d);
+        inputEl.value = '';
+        renderScCategories();
+      }
+      document.getElementById('dev-add-show-cat-btn').addEventListener('click', function() {
+        addNewCategory('show', document.getElementById('dev-new-show-cat'));
+      });
+      document.getElementById('dev-add-channel-cat-btn').addEventListener('click', function() {
+        addNewCategory('channel', document.getElementById('dev-new-channel-cat'));
+      });
+      document.getElementById('dev-new-show-cat').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); document.getElementById('dev-add-show-cat-btn').click(); }
+      });
+      document.getElementById('dev-new-channel-cat').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); document.getElementById('dev-add-channel-cat-btn').click(); }
+      });
+
+      document.getElementById('dev-entry-logo-input').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        fileToPngDataUrl(file, 500, function(dataUrl) {
+          entryLogoDataUrl = dataUrl;
+          var thumb = document.getElementById('dev-entry-logo-thumb');
+          thumb.classList.remove('empty');
+          thumb.innerHTML = dataUrl ? '<img src="' + dataUrl + '" alt="">' : '';
+        });
+      });
+      document.getElementById('dev-entry-poster-input').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        fileToPngDataUrl(file, 900, function(dataUrl) {
+          entryPosterDataUrl = dataUrl;
+          var thumb = document.getElementById('dev-entry-poster-thumb');
+          thumb.classList.remove('empty');
+          thumb.innerHTML = dataUrl ? '<img src="' + dataUrl + '" alt="">' : '';
+        });
+      });
+
+      document.getElementById('dev-add-entry-btn').addEventListener('click', function() {
+        var status = document.getElementById('dev-entry-status');
+        var name = document.getElementById('dev-entry-name').value.trim();
+        var category = document.getElementById('dev-entry-category').value;
+        var orderInput = document.getElementById('dev-entry-order');
+        var order = parseInt(orderInput.value, 10);
+        var id = document.getElementById('dev-entry-id').value.trim();
+        var handle = document.getElementById('dev-entry-handle').value.trim();
+        var description = document.getElementById('dev-entry-description').value.trim();
+
+        if (!name || !category || !id || !description || !order) {
+          status.textContent = 'Fill in name, category, order, ID, and description first.';
+          status.className = 'settings-status err';
+          return;
+        }
+        var taken = getTakenOrders(currentEntryType, category);
+        if (taken.indexOf(order) !== -1) {
+          status.textContent = 'Order ' + order + ' is already taken in that category — pick a free number (see list above the field).';
+          status.className = 'settings-status err';
+          return;
+        }
+        var slug = scSlugify(name);
+        var entry = {
+          type: currentEntryType,
+          slug: slug,
+          name: name,
+          category: category,
+          order: order,
+          id: id,
+          handle: currentEntryType === 'channel' ? (handle || null) : null,
+          description: description,
+          logoDataUrl: entryLogoDataUrl,
+          posterDataUrl: entryPosterDataUrl,
+          logoFile: slug + '-logo.png',
+          posterFile: slug + '-poster.png'
+        };
+        var d = loadScDraft();
+        d.entries.push(entry);
+        saveScDraft(d);
+
+        document.getElementById('dev-entry-name').value = '';
+        document.getElementById('dev-entry-id').value = '';
+        document.getElementById('dev-entry-handle').value = '';
+        document.getElementById('dev-entry-description').value = '';
+        orderInput.dataset.auto = '1';
+        entryLogoDataUrl = null; entryPosterDataUrl = null;
+        var logoThumb = document.getElementById('dev-entry-logo-thumb');
+        logoThumb.className = 'dev-image-thumb empty'; logoThumb.textContent = 'No logo';
+        var posterThumb = document.getElementById('dev-entry-poster-thumb');
+        posterThumb.className = 'dev-image-thumb empty'; posterThumb.textContent = 'No poster';
+        renderTakenSlots();
+
+        status.textContent = 'Added \u201c' + name + '\u201d to the pending list.';
+        status.className = 'settings-status ok';
+        renderScPending();
+      });
+
+      document.getElementById('dev-sc-clear-btn').addEventListener('click', function() {
+        if (!confirm('Clear all pending categories, entries, and order changes? This only clears your local draft — nothing already downloaded is affected.')) return;
+        saveScDraft({ categories: [], entries: [], orderEdits: {} });
+        renderScCategories();
+        renderReorderList();
+        renderScPending();
+      });
+
+      document.getElementById('dev-sc-zip-btn').addEventListener('click', function() {
+        var status = document.getElementById('dev-sc-zip-status');
+        var d = loadScDraft();
+        var orderEditKeys = Object.keys(d.orderEdits);
+        if (!d.categories.length && !d.entries.length && !orderEditKeys.length) {
+          status.textContent = 'Nothing to package yet — add a category, a show/channel, or change an order number first.';
+          status.className = 'settings-status err';
+          return;
+        }
+        var conflicts = findOrderConflicts();
+        if (conflicts.length) {
+          status.textContent = 'Fix the highlighted order conflicts first (' + conflicts.join(', ') + ' — two entries share the same number).';
+          status.className = 'settings-status err';
+          return;
+        }
+        if (typeof JSZip === 'undefined') {
+          status.textContent = 'Could not load the zip library — check your internet connection and try again.';
+          status.className = 'settings-status err';
+          return;
+        }
+        status.textContent = 'Fetching current stream-common.js\u2026';
+        status.className = 'settings-status';
+
+        fetch('/stream-common.js').then(function(r) {
+          if (!r.ok) throw new Error('Could not fetch the live stream-common.js');
+          return r.text();
+        }).then(function(source) {
+          var updated = source;
+          var newShowCats = d.categories.filter(function(c) { return c.type === 'show'; }).map(buildCategoryEntryText).join('');
+          var newChannelCats = d.categories.filter(function(c) { return c.type === 'channel'; }).map(buildCategoryEntryText).join('');
+          var newShows = d.entries.filter(function(e) { return e.type === 'show'; }).map(buildShowEntryText).join('');
+          var newChannels = d.entries.filter(function(e) { return e.type === 'channel'; }).map(buildChannelEntryText).join('');
+
+          if (newShowCats) { updated = injectOrThrow(updated, 'SHOW_CATEGORIES', newShowCats); }
+          if (newChannelCats) { updated = injectOrThrow(updated, 'CHANNEL_CATEGORIES', newChannelCats); }
+          if (newShows) { updated = injectOrThrow(updated, 'SHOWS', newShows); }
+          if (newChannels) { updated = injectOrThrow(updated, 'CHANNELS', newChannels); }
+
+          orderEditKeys.forEach(function(slug) {
+            var result = replaceOrderForSlug(updated, slug, d.orderEdits[slug]);
+            if (result === null) throw new Error('Could not find "' + slug + '" in stream-common.js to update its order — was it renamed?');
+            updated = result;
+          });
+
+          var zip = new JSZip();
+          zip.file('stream-common.js', updated);
+          var assetsFolder = zip.folder('assets');
+          var postersFolder = assetsFolder.folder('posters');
+          d.entries.forEach(function(e) {
+            if (e.logoDataUrl) assetsFolder.file(e.logoFile, e.logoDataUrl.split(',')[1], { base64: true });
+            if (e.posterDataUrl) postersFolder.file(e.posterFile, e.posterDataUrl.split(',')[1], { base64: true });
+          });
+          return zip.generateAsync({ type: 'blob' });
+        }).then(function(blob) {
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = url; a.download = 'twechon-shows-channels-update.zip';
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+          status.textContent = 'Downloaded! Upload stream-common.js (overwrite) and the assets/ folder contents to your server, then Clear Pending Draft once it\u2019s live.';
+          status.className = 'settings-status ok';
+        }).catch(function(err) {
+          status.textContent = 'Something went wrong: ' + (err && err.message ? err.message : 'try again.');
+          status.className = 'settings-status err';
+        });
+      });
+    }
+
+    function findOrderConflicts() {
+      var conflicts = [];
+      function check(categories, items) {
+        categories.forEach(function(cat) {
+          var counts = {};
+          items.filter(function(x) { return x.category === cat.key; }).forEach(function(x) {
+            var v = getEffectiveOrder(x);
+            counts[v] = (counts[v] || 0) + 1;
+          });
+          var hasDup = Object.keys(counts).some(function(k) { return counts[k] > 1; });
+          if (hasDup) conflicts.push(cat.label);
+        });
+      }
+      check(SHOW_CATEGORIES, SHOWS);
+      check(CHANNEL_CATEGORIES, CHANNELS);
+      return conflicts;
+    }
+    function replaceOrderForSlug(source, slug, newOrder) {
+      var slugPattern = new RegExp('slug:\\s*[\'"]' + slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\'"]');
+      var slugMatch = slugPattern.exec(source);
+      if (!slugMatch) return null;
+      var rest = source.slice(slugMatch.index);
+      var orderMatch = /order:\s*\d+/.exec(rest);
+      if (!orderMatch) return null;
+      var absoluteIndex = slugMatch.index + orderMatch.index;
+      return source.slice(0, absoluteIndex) + 'order: ' + newOrder + source.slice(absoluteIndex + orderMatch[0].length);
+    }
+    function injectOrThrow(source, varName, newText) {
+      var result = injectBeforeArrayClose(source, varName, newText);
+      if (result === null) throw new Error('Could not find "' + varName + '" in stream-common.js — was it renamed?');
+      return result;
+    }
+    function injectBeforeArrayClose(sourceText, varName, newEntriesText) {
+      var startMarker = 'var ' + varName + ' = [';
+      var startIdx = sourceText.indexOf(startMarker);
+      if (startIdx === -1) return null;
+      var i = startIdx + startMarker.length - 1; // position of the opening "["
+      var depth = 0;
+      for (; i < sourceText.length; i++) {
+        if (sourceText[i] === '[') depth++;
+        else if (sourceText[i] === ']') { depth--; if (depth === 0) break; }
+      }
+      if (depth !== 0) return null;
+      return sourceText.slice(0, i) + newEntriesText + sourceText.slice(i);
+    }
+    function buildCategoryEntryText(cat) {
+      return '\n  { key: ' + JSON.stringify(cat.key) + ', label: ' + JSON.stringify(cat.label) + ' },';
+    }
+    function buildShowEntryText(e) {
+      return '\n  {\n' +
+        '    slug: ' + JSON.stringify(e.slug) + ',\n' +
+        '    name: ' + JSON.stringify(e.name) + ',\n' +
+        '    category: ' + JSON.stringify(e.category) + ',\n' +
+        '    order: ' + JSON.stringify(e.order) + ',\n' +
+        '    playlistId: ' + JSON.stringify(e.id) + ',\n' +
+        '    logo: ' + JSON.stringify('/assets/' + e.logoFile) + ',\n' +
+        '    poster: ' + JSON.stringify('/assets/posters/' + e.posterFile) + ',\n' +
+        '    description: ' + JSON.stringify(e.description) + '\n' +
+        '  },';
+    }
+    function buildChannelEntryText(e) {
+      return '\n  {\n' +
+        '    slug: ' + JSON.stringify(e.slug) + ',\n' +
+        '    name: ' + JSON.stringify(e.name) + ',\n' +
+        '    category: ' + JSON.stringify(e.category) + ',\n' +
+        '    order: ' + JSON.stringify(e.order) + ',\n' +
+        '    handle: ' + JSON.stringify(e.handle || null) + ',\n' +
+        '    channelId: ' + JSON.stringify(e.id) + ',\n' +
+        '    logo: ' + JSON.stringify('/assets/' + e.logoFile) + ',\n' +
+        '    poster: ' + JSON.stringify('/assets/posters/' + e.posterFile) + ',\n' +
+        '    description: ' + JSON.stringify(e.description) + '\n' +
+        '  },';
+    }
+
+    // Runs last, once everything above (SLOTS, buildEditor,
+    // buildShowsChannelsManager, etc.) is fully defined — showPanel()
+    // depends on all of it, so auto-unlocking any earlier would crash
+    // on a page reload when a previous session is still unlocked.
+    if (isDevUnlocked()) showPanel(); else passInput.focus();
+  </script>
+</body>
+</html>

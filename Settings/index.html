@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — Twechon Stream</title>
+  <link rel="shortcut icon" type="image/x-icon" href="/assets/verzeefavicon.png">
+  <meta name="description" content="Twechon Stream account settings.">
+  <link rel="stylesheet" href="/stream.css">
+</head>
+<body>
+
+  <canvas id="star-canvas"></canvas>
+
+  <header>
+    <a class="brand" href="/Home/">
+      <img src="/assets/verzeefavicon.png" alt="Twechon">
+      <span class="brand-name">Twechon</span>
+      <span class="brand-sub">Stream</span>
+    </a>
+    <nav class="header-nav">
+      <a class="header-nav-link" href="/Home/"><span class="nav-label">Home</span></a>
+      <a class="header-nav-link" href="/Browse/"><span class="nav-label">Browse</span></a>
+      <a class="header-nav-link active" href="/Settings/"><span class="nav-label">Settings</span></a>
+      <a class="header-nav-link" href="/Submit/"><span class="nav-label">Submit a Show</span></a>
+    </nav>
+
+    <div class="header-right">
+      <div class="auth-area" id="auth-area">
+        <!-- Filled in by JS: Log In / Sign Up buttons, or user menu -->
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <div class="settings-title">Settings</div>
+
+    <div id="settings-body"></div>
+
+  </main>
+
+  <footer class="stream-footer">
+    &copy; 2026 Twechon &nbsp;·&nbsp;
+    <a href="https://twechon.com/Home/">twechon.com</a> &nbsp;·&nbsp;
+    <a href="mailto:support@twechon.com">support@twechon.com</a>
+  </footer>
+
+  <!-- Auth modal -->
+  <div class="modal-overlay" id="auth-modal" role="dialog" aria-modal="true">
+    <div class="modal-box auth-box">
+      <div class="modal-header">
+        <span class="modal-title" id="auth-modal-title">Account</span>
+        <button class="modal-close" id="auth-modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="auth-tab-login" data-mode="login">Log In</div>
+        <div class="auth-tab" id="auth-tab-signup" data-mode="signup">Sign Up</div>
+      </div>
+
+      <form class="auth-form" id="login-form">
+        <div class="auth-field">
+          <label>Username</label>
+          <input type="text" id="login-username" autocomplete="username" required>
+        </div>
+        <div class="auth-field">
+          <label>Password</label>
+          <input type="password" id="login-password" autocomplete="current-password" required>
+        </div>
+        <div class="auth-error" id="login-error"></div>
+        <button type="submit" class="auth-submit">Log In</button>
+      </form>
+
+      <form class="auth-form hidden" id="signup-form">
+        <div class="auth-field">
+          <label>Username</label>
+          <input type="text" id="signup-username" autocomplete="username" required minlength="3">
+        </div>
+        <div class="auth-field">
+          <label>Password</label>
+          <input type="password" id="signup-password" autocomplete="new-password" required minlength="4">
+        </div>
+        <div class="auth-error" id="signup-error"></div>
+        <button type="submit" class="auth-submit">Create Account</button>
+        <div class="auth-note">Accounts, bookmarks, playlists, and watch progress are saved only in this browser — there's no server behind this site, so they won't follow you to another device or browser. Use Settings → Export to carry your data to a new one.</div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Video modal (kept for shared script compatibility, unused on this page) -->
+  <div class="modal-overlay" id="modal" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title" id="modal-title">—</span>
+        <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-player">
+        <div id="modal-iframe"></div>
+      </div>
+      <div class="modal-queue-nav hidden" id="modal-queue-nav">
+        <button type="button" class="settings-btn" id="modal-prev-btn">‹ Previous Episode</button>
+        <span id="modal-queue-position"></span>
+        <button type="button" class="settings-btn primary" id="modal-next-btn">Next Episode ›</button>
+      </div>
+      <div class="modal-yt-link">
+        <a id="modal-yt-link" href="#" target="_blank" rel="noopener noreferrer">Open on YouTube ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add-to-playlist modal (kept for shared script compatibility, unused on this page) -->
+  <div class="modal-overlay" id="playlist-modal" role="dialog" aria-modal="true">
+    <div class="modal-box playlist-box">
+      <div class="modal-header">
+        <span class="modal-title">Save to playlist</span>
+        <button class="modal-close" id="playlist-modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="playlist-list" id="playlist-list"></div>
+      <div class="playlist-new">
+        <input type="text" id="new-playlist-name" placeholder="New playlist name…" maxlength="60">
+        <button id="new-playlist-btn" type="button">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="/stream-common.js"></script>
+  <script>
+    /* ══════════════════════════════════════════════════════════
+       SETTINGS PAGE — export / import account data between devices
+    ══════════════════════════════════════════════════════════ */
+    var settingsBody = document.getElementById('settings-body');
+
+    function renderSettings() {
+      var user = getSession();
+      settingsBody.innerHTML = '';
+
+      // Profile picture card
+      var avatarCard = document.createElement('div');
+      avatarCard.className = 'settings-card';
+      if (user) {
+        var avatarData = currentUserData();
+        var currentPic = avatarData && avatarData.profilePicture;
+        avatarCard.innerHTML =
+          '<div class="settings-card-title">\ud83d\uddbc\ufe0f Profile Picture</div>' +
+          '<div class="settings-card-desc">Shown next to your name in the header.</div>' +
+          '<div class="settings-row" style="align-items:center;">' +
+            '<div id="avatar-preview" style="width:64px;height:64px;border-radius:50%;background:var(--surface);border:1px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;">' +
+              (currentPic ? '<img src="' + currentPic + '" alt="" style="width:100%;height:100%;object-fit:cover;">' : '<span style="font-size:1.4rem;color:var(--muted);">\ud83d\udc64</span>') +
+            '</div>' +
+            '<label class="settings-btn">Choose Image<input type="file" id="avatar-file-input" accept="image/*" style="display:none;"></label>' +
+            (currentPic ? '<button type="button" class="settings-btn" id="avatar-remove-btn">Remove</button>' : '') +
+          '</div>' +
+          '<div class="settings-status" id="avatar-status"></div>';
+      } else {
+        avatarCard.innerHTML =
+          '<div class="settings-card-title">\ud83d\uddbc\ufe0f Profile Picture</div>' +
+          '<div class="settings-card-desc">Log in to add a profile picture.</div>' +
+          '<div class="settings-row"><button type="button" class="settings-btn" id="avatar-login-btn">Log In</button></div>';
+      }
+      settingsBody.appendChild(avatarCard);
+
+      // Export card
+      var exportCard = document.createElement('div');
+      exportCard.className = 'settings-card';
+      if (user) {
+        var data = currentUserData();
+        var displayName = (data && data.displayName) || user;
+        exportCard.innerHTML =
+          '<div class="settings-card-title">\u2b07\ufe0f Export My Data</div>' +
+          '<div class="settings-account-info">Logged in as <b>' + displayName + '</b></div>' +
+          '<div class="settings-card-desc">Download everything tied to this account — bookmarks, playlists, and watch progress — as a single .json file. Bring that file to a new device or browser and import it there to pick up right where you left off.</div>' +
+          '<div class="settings-row"><button type="button" class="settings-btn primary" id="export-btn">Download My Data (.json)</button></div>' +
+          '<div class="settings-status" id="export-status"></div>' +
+          '<div class="settings-warning">This file can log in as you on any device that imports it — keep it somewhere private, the same way you\u2019d treat a password.</div>';
+      } else {
+        exportCard.innerHTML =
+          '<div class="settings-card-title">\u2b07\ufe0f Export My Data</div>' +
+          '<div class="settings-card-desc">Log in to download a copy of your bookmarks, playlists, and watch progress.</div>' +
+          '<div class="settings-row"><button type="button" class="settings-btn" id="export-login-btn">Log In</button></div>';
+      }
+      settingsBody.appendChild(exportCard);
+
+      // Import card
+      var importCard = document.createElement('div');
+      importCard.className = 'settings-card';
+      importCard.innerHTML =
+        '<div class="settings-card-title">\u2b06\ufe0f Import Data</div>' +
+        '<div class="settings-card-desc">On a new device or browser? Select the .json file you downloaded from Settings here before. This logs you in and restores that account\u2019s bookmarks, playlists, and progress in this browser.</div>' +
+        '<div class="settings-row">' +
+          '<label class="settings-btn"><input type="file" id="import-file" accept="application/json,.json">Choose File…</label>' +
+        '</div>' +
+        '<div class="settings-status" id="import-status"></div>' +
+        (user ? '<div class="settings-warning">You\u2019re currently logged in as <b>' + ((currentUserData()||{}).displayName || user) + '</b>. Importing a different account\u2019s file will overwrite that account\u2019s data in this browser and log you into it instead.</div>' : '');
+      settingsBody.appendChild(importCard);
+
+      // Account card
+      if (user) {
+        var accountCard = document.createElement('div');
+        accountCard.className = 'settings-card';
+        accountCard.innerHTML =
+          '<div class="settings-card-title">Account</div>' +
+          '<div class="settings-card-desc">Signed in on this browser. Logging out doesn\u2019t delete anything — your data stays saved here until you import something else over it.</div>' +
+          '<div class="settings-row"><button type="button" class="settings-btn" id="logout-btn">Log Out</button></div>';
+        settingsBody.appendChild(accountCard);
+      }
+
+      // Wire up buttons
+      var avatarLoginBtn = document.getElementById('avatar-login-btn');
+      if (avatarLoginBtn) avatarLoginBtn.addEventListener('click', function(){ openAuthModal('login'); });
+
+      var avatarFileInput = document.getElementById('avatar-file-input');
+      if (avatarFileInput) {
+        avatarFileInput.addEventListener('change', function() {
+          var file = avatarFileInput.files && avatarFileInput.files[0];
+          if (!file) return;
+          var status = document.getElementById('avatar-status');
+          resizeImageFile(file, 256, function(dataUrl) {
+            if (!dataUrl) {
+              status.textContent = 'Couldn\u2019t read that image — try a different file.';
+              status.className = 'settings-status err';
+              return;
+            }
+            setProfilePicture(dataUrl);
+            status.textContent = 'Profile picture updated!';
+            status.className = 'settings-status ok';
+            renderAuthArea();
+            renderSettings();
+          });
+          avatarFileInput.value = '';
+        });
+      }
+      var avatarRemoveBtn = document.getElementById('avatar-remove-btn');
+      if (avatarRemoveBtn) {
+        avatarRemoveBtn.addEventListener('click', function() {
+          removeProfilePicture();
+          renderAuthArea();
+          renderSettings();
+        });
+      }
+
+      var exportBtn = document.getElementById('export-btn');
+      if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+          var ok = downloadUserData(getSession());
+          var status = document.getElementById('export-status');
+          status.textContent = ok ? 'Downloaded!' : 'Something went wrong — try logging in again.';
+          status.className = 'settings-status ' + (ok ? 'ok' : 'err');
+        });
+      }
+      var exportLoginBtn = document.getElementById('export-login-btn');
+      if (exportLoginBtn) exportLoginBtn.addEventListener('click', function(){ openAuthModal('login'); });
+
+      var logoutBtn = document.getElementById('logout-btn');
+      if (logoutBtn) logoutBtn.addEventListener('click', function() { logoutUser(); onAuthChanged(); });
+
+      var importInput = document.getElementById('import-file');
+      importInput.addEventListener('change', function() {
+        var file = importInput.files && importInput.files[0];
+        if (!file) return;
+        var status = document.getElementById('import-status');
+        var reader = new FileReader();
+        reader.onload = function() {
+          var res = importUserData(reader.result);
+          if (!res.ok) {
+            status.textContent = res.error;
+            status.className = 'settings-status err';
+          } else {
+            status.textContent = 'Imported! Logged in as ' + res.username + '.';
+            status.className = 'settings-status ok';
+            onAuthChanged();
+            renderSettings();
+          }
+        };
+        reader.onerror = function() {
+          status.textContent = 'Couldn\u2019t read that file — try again.';
+          status.className = 'settings-status err';
+        };
+        reader.readAsText(file);
+        importInput.value = '';
+      });
+    }
+
+    function onAuthChangedPage() { renderSettings(); }
+
+    renderAuthArea();
+    renderSettings();
+  </script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Twechon Stream</title>
+  <link rel="shortcut icon" type="image/x-icon" href="/assets/verzeefavicon.png">
+  <meta name="description" content="Watch Twechon videos — shows, gaming, music and more, all in one place.">
+  <link rel="stylesheet" href="/stream.css">
+</head>
+<body>
+
+  <canvas id="star-canvas"></canvas>
+
+  <header>
+    <a class="brand" href="/Home/">
+      <img src="https://twechon.com/assets/twechon.png" alt="Twechon">
+      <span class="brand-name">Twechon</span>
+      <span class="brand-sub">Stream</span>
+    </a>
+    <nav class="header-nav">
+      <a class="header-nav-link" href="/Home/"><span class="nav-label">Home</span></a>
+      <a class="header-nav-link active" href="/Browse/"><span class="nav-label">Browse</span></a>
+      <a class="header-nav-link" href="/Settings/"><span class="nav-label">Settings</span></a>
+      <a class="header-nav-link" href="/Submit/"><span class="nav-label">Submit a Show</span></a>
+    </nav>
+
+    <div class="header-right">
+      <a class="header-back" href="/Browse/" style="margin-left:0;">← Back</a>
+      <div class="auth-area" id="auth-area">
+        <!-- Filled in by JS: Log In / Sign Up buttons, or user menu -->
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <div class="show-hero" id="show-hero-wrap">
+      <!-- Filled in by JS: logo, title, description, bookmark button -->
+    </div>
+
+    <div id="show-grid-wrap">
+      <!-- Filled in by JS: 5×2 video grid with pagination -->
+    </div>
+  </main>
+
+  <!-- Video modal -->
+  <div class="modal-overlay" id="modal" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title" id="modal-title">—</span>
+        <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-player">
+        <div id="modal-iframe"></div>
+      </div>
+      <div class="modal-queue-nav hidden" id="modal-queue-nav">
+        <button type="button" class="settings-btn" id="modal-prev-btn">‹ Previous Episode</button>
+        <span id="modal-queue-position"></span>
+        <button type="button" class="settings-btn primary" id="modal-next-btn">Next Episode ›</button>
+      </div>
+      <div class="modal-yt-link">
+        <a id="modal-yt-link" href="#" target="_blank" rel="noopener noreferrer">Open on YouTube ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <footer class="stream-footer">
+    &copy; 2026 Twechon &nbsp;·&nbsp;
+    <a href="https://twechon.com/Home/">twechon.com</a> &nbsp;·&nbsp;
+    <a href="mailto:support@twechon.com">support@twechon.com</a>
+  </footer>
+
+  <!-- Auth modal -->
+  <div class="modal-overlay" id="auth-modal" role="dialog" aria-modal="true">
+    <div class="modal-box auth-box">
+      <div class="modal-header">
+        <span class="modal-title" id="auth-modal-title">Account</span>
+        <button class="modal-close" id="auth-modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="auth-tab-login" data-mode="login">Log In</div>
+        <div class="auth-tab" id="auth-tab-signup" data-mode="signup">Sign Up</div>
+      </div>
+
+      <form class="auth-form" id="login-form">
+        <div class="auth-field">
+          <label>Username</label>
+          <input type="text" id="login-username" autocomplete="username" required>
+        </div>
+        <div class="auth-field">
+          <label>Password</label>
+          <input type="password" id="login-password" autocomplete="current-password" required>
+        </div>
+        <div class="auth-error" id="login-error"></div>
+        <button type="submit" class="auth-submit">Log In</button>
+      </form>
+
+      <form class="auth-form hidden" id="signup-form">
+        <div class="auth-field">
+          <label>Username</label>
+          <input type="text" id="signup-username" autocomplete="username" required minlength="3">
+        </div>
+        <div class="auth-field">
+          <label>Password</label>
+          <input type="password" id="signup-password" autocomplete="new-password" required minlength="4">
+        </div>
+        <div class="auth-error" id="signup-error"></div>
+        <button type="submit" class="auth-submit">Create Account</button>
+        <div class="auth-note">Accounts, bookmarks, playlists, and watch progress are saved only in this browser — there's no server behind this site, so they won't follow you to another device or browser. Use Settings → Export to carry your data to a new one.</div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add-to-playlist modal -->
+  <div class="modal-overlay" id="playlist-modal" role="dialog" aria-modal="true">
+    <div class="modal-box playlist-box">
+      <div class="modal-header">
+        <span class="modal-title">Save to playlist</span>
+        <button class="modal-close" id="playlist-modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="playlist-list" id="playlist-list"></div>
+      <div class="playlist-new">
+        <input type="text" id="new-playlist-name" placeholder="New playlist name…" maxlength="60">
+        <button id="new-playlist-btn" type="button">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="/stream-common.js"></script>
+  <script>
+    /* ══════════════════════════════════════════════════════════
+       SHOW / CHANNEL DETAIL PAGE
+       Reads ?type=show|channel&id=<slug> from the URL and renders
+       the matching entry from SHOWS / CHANNELS (stream-common.js).
+    ══════════════════════════════════════════════════════════ */
+    var params = new URLSearchParams(window.location.search);
+    var pageType = params.get('type') === 'channel' ? 'channel' : 'show';
+    var pageSlug = params.get('id') || '';
+
+    var item = pageType === 'channel' ? getChannelBySlug(pageSlug) : getShowBySlug(pageSlug);
+    var heroWrap = document.getElementById('show-hero-wrap');
+    var gridWrap = document.getElementById('show-grid-wrap');
+
+    renderAuthArea();
+
+    if (!item) {
+      document.title = 'Not Found — Twechon Stream';
+      heroWrap.innerHTML = '<div class="show-page-not-found">Couldn\u2019t find that show or channel. <a href="/Browse/">\u2190 Back to Browse</a></div>';
+    } else {
+      document.title = item.name + ' — Twechon Stream';
+
+      var ytUrl = pageType === 'channel'
+        ? 'https://youtube.com/' + item.handle
+        : 'https://www.youtube.com/playlist?list=' + item.playlistId;
+
+      heroWrap.innerHTML =
+        '<div class="show-hero-logo-wrap"><img src="' + item.logo + '" alt="' + item.name + '"></div>' +
+        '<div class="show-hero-info">' +
+          '<div class="show-hero-title">' + item.name + '</div>' +
+          (item.handle ? '<div class="show-hero-handle">' + item.handle + '</div>' : '') +
+          (item.description ? '<div class="show-hero-desc">' + item.description + '</div>' : '') +
+          '<div class="show-hero-actions" id="show-hero-actions"></div>' +
+        '</div>';
+
+      var actionsWrap = document.getElementById('show-hero-actions');
+
+      var bookmarkBtn = document.createElement('button');
+      bookmarkBtn.type = 'button';
+      bookmarkBtn.className = 'show-bookmark-btn show-bookmark-target' + (isShowBookmarked(item.slug) ? ' bookmarked' : '');
+      bookmarkBtn.dataset.showId = item.slug;
+      function renderBookmarkBtnLabel() {
+        var on = bookmarkBtn.classList.contains('bookmarked');
+        bookmarkBtn.innerHTML =
+          '<svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>' +
+          (on ? 'Bookmarked' : ('Bookmark this ' + (pageType === 'channel' ? 'channel' : 'show')));
+      }
+      renderBookmarkBtnLabel();
+      bookmarkBtn.addEventListener('click', function() {
+        if (!requireLogin()) return;
+        toggleShowBookmark(item.slug, { id: item.slug, type: pageType, name: item.name, handle: item.handle || null, logo: item.logo, poster: item.poster || null });
+        renderBookmarkBtnLabel();
+      });
+      actionsWrap.appendChild(bookmarkBtn);
+
+      var ytLink = document.createElement('a');
+      ytLink.href = ytUrl;
+      ytLink.target = '_blank';
+      ytLink.rel = 'noopener noreferrer';
+      ytLink.className = 'auth-btn';
+      ytLink.textContent = 'View on YouTube \u2197';
+      actionsWrap.appendChild(ytLink);
+
+      // 5×2 video grid with pagination
+      var grid = document.createElement('div');
+      grid.className = 'video-grid';
+      var loading = document.createElement('div');
+      loading.className = 'section-loading';
+      loading.innerHTML = '<div class="spinner"></div> Loading videos…';
+      var sectionEl = document.createElement('div');
+      sectionEl.className = 'stream-section';
+      sectionEl.appendChild(loading);
+      sectionEl.appendChild(grid);
+      gridWrap.appendChild(sectionEl);
+
+      var built = { section: sectionEl, grid: grid, loading: loading };
+
+      // Episode queue for autoplay + Previous/Next Episode buttons —
+      // shows only, not channels. Fetches the whole playlist in the
+      // background (independent of the paginated grid above) so the
+      // queue is complete even before every page has been clicked
+      // through in the UI.
+      var episodeQueue = (pageType === 'show') ? [] : null;
+
+      if (!YT_API_KEY) {
+        loading.innerHTML = '⚠️ Add your YouTube API key to stream-common.js to load videos.';
+      } else if (pageType === 'channel') {
+        setupPagedSection(built, channelLoader(item.channelId), 'No videos found.');
+      } else {
+        setupPagedSection(built, playlistLoader(item.playlistId), 'No videos found in this playlist.', episodeQueue);
+        fetchFullPlaylist(item.playlistId, function(fullList) {
+          episodeQueue.length = 0;
+          Array.prototype.push.apply(episodeQueue, fullList);
+        });
+      }
+    }
+
+    refreshBookmarkIcons();
+    refreshShowBookmarkIcons();
+  </script>
+</body>
+</html>

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browse — Twechon Stream</title>
+  <link rel="shortcut icon" type="image/x-icon" href="/assets/verzeefavicon.png">
+  <meta name="description" content="Browse Twechon shows, channels, bookmarks, and playlists.">
+  <link rel="stylesheet" href="/stream.css">
+</head>
+<body>
+
+  <canvas id="star-canvas"></canvas>
+
+  <header>
+    <a class="brand" href="/Home/">
+      <img src="/assets/verzeefavicon.png" alt="Twechon">
+      <span class="brand-name">Twechon</span>
+      <span class="brand-sub">Stream</span>
+    </a>
+    <nav class="header-nav">
+      <a class="header-nav-link" href="/Home/"><span class="nav-label">Home</span></a>
+      <a class="header-nav-link active" href="/Browse/"><span class="nav-label">Browse</span></a>
+      <a class="header-nav-link" href="/Settings/"><span class="nav-label">Settings</span></a>
+      <a class="header-nav-link" href="/Submit/"><span class="nav-label">Submit a Show</span></a>
+    </nav>
+
+    <div class="header-right">
+      <div style="position:relative;">
+        <button type="button" class="header-bell-btn" id="header-bell-btn" aria-label="News notifications">
+          <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="header-bell-dot" id="header-bell-dot"></span>
+        </button>
+        <div class="notification-dropdown" id="notification-dropdown"></div>
+      </div>
+      <div class="auth-area" id="auth-area">
+        <!-- Filled in by JS: Log In / Sign Up buttons, or user menu -->
+      </div>
+    </div>
+  </header>
+
+  <div class="api-banner" id="api-banner">
+    ⚠️ YouTube API key not set — add your key to the <code>YT_API_KEY</code> variable in stream-common.js.
+    <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer">Get a free key →</a>
+  </div>
+
+  <main id="main-content">
+
+    <!-- Tab bar — populated by JS from SHOW_CATEGORIES / CHANNEL_CATEGORIES -->
+    <div class="tab-bar" id="tab-bar"></div>
+
+    <!-- Browse view: Netflix-style rows, one per tab -->
+    <div id="browse-rows-container"></div>
+
+    <!-- Bookmarks / My Playlists views, built by JS -->
+    <div id="sections-container"></div>
+
+  </main>
+
+  <!-- Video modal -->
+  <div class="modal-overlay" id="modal" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title" id="modal-title">—</span>
+        <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-player">
+        <div id="modal-iframe"></div>
+      </div>
+      <div class="modal-queue-nav hidden" id="modal-queue-nav">
+        <button type="button" class="settings-btn" id="modal-prev-btn">‹ Previous Episode</button>
+        <span id="modal-queue-position"></span>
+        <button type="button" class="settings-btn primary" id="modal-next-btn">Next Episode ›</button>
+      </div>
+      <div class="modal-yt-link">
+        <a id="modal-yt-link" href="#" target="_blank" rel="noopener noreferrer">Open on YouTube ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <footer class="stream-footer">
+    &copy; 2026 Twechon &nbsp;·&nbsp;
+    <a href="https://twechon.com/Home/">twechon.com</a> &nbsp;·&nbsp;
+    <a href="mailto:support@twechon.com">support@twechon.com</a>
+  </footer>
+
+  <!-- Auth modal -->
+  <div class="modal-overlay" id="auth-modal" role="dialog" aria-modal="true">
+    <div class="modal-box auth-box">
+      <div class="modal-header">
+        <span class="modal-title" id="auth-modal-title">Account</span>
+        <button class="modal-close" id="auth-modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="auth-tab-login" data-mode="login">Log In</div>
+        <div class="auth-tab" id="auth-tab-signup" data-mode="signup">Sign Up</div>
+      </div>
+
+      <form class="auth-form" id="login-form">
+        <div class="auth-field">
+          <label>Username</label>
+          <input type="text" id="login-username" autocomplete="username" required>
+        </div>
+        <div class="auth-field">
+          <label>Password</label>
+          <input type="password" id="login-password" autocomplete="current-password" required>
+        </div>
+        <div class="auth-error" id="login-error"></div>
+        <button type="submit" class="auth-submit">Log In</button>
+      </form>
+
+      <form class="auth-form hidden" id="signup-form">
+        <div class="auth-field">
+          <label>Username</label>
+          <input type="text" id="signup-username" autocomplete="username" required minlength="3">
+        </div>
+        <div class="auth-field">
+          <label>Password</label>
+          <input type="password" id="signup-password" autocomplete="new-password" required minlength="4">
+        </div>
+        <div class="auth-error" id="signup-error"></div>
+        <button type="submit" class="auth-submit">Create Account</button>
+        <div class="auth-note">Accounts, bookmarks, playlists, and watch progress are saved only in this browser — there's no server behind this site, so they won't follow you to another device or browser. Use Settings → Export to carry your data to a new one.</div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add-to-playlist modal -->
+  <div class="modal-overlay" id="playlist-modal" role="dialog" aria-modal="true">
+    <div class="modal-box playlist-box">
+      <div class="modal-header">
+        <span class="modal-title">Save to playlist</span>
+        <button class="modal-close" id="playlist-modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="playlist-list" id="playlist-list"></div>
+      <div class="playlist-new">
+        <input type="text" id="new-playlist-name" placeholder="New playlist name…" maxlength="60">
+        <button id="new-playlist-btn" type="button">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="/stream-common.js"></script>
+  <script>
+    /* ══════════════════════════════════════════════════════════
+       BROWSE PAGE — Netflix-style Shows/Channels rows + Bookmarks/Playlists tabs
+    ══════════════════════════════════════════════════════════ */
+    var apiBanner = document.getElementById('api-banner');
+    if (YT_API_KEY) apiBanner.classList.add('hidden');
+
+    // News notification bell (same items as the homepage banner)
+    initNewsNotifications();
+
+    // Tab bar + Netflix rows — built entirely from SHOW_CATEGORIES /
+    // CHANNEL_CATEGORIES in stream-common.js, so new categories added
+    // from Dev Mode show up automatically with no other code changes.
+    var tabBar = document.getElementById('tab-bar');
+    var rowsContainer = document.getElementById('browse-rows-container');
+    var CATEGORY_TABS = [];
+
+    function toPosterItem(entry) {
+      return { id: entry.slug, name: entry.name, handle: entry.handle || null, logo: entry.logo, poster: entry.poster };
+    }
+    // Sorted by each entry's `order` field — set manually (Dev Mode
+    // shows which numbers are already taken per category) so you
+    // control exactly where a show/channel lands, rather than it
+    // always trailing at the end or being alphabetized for you.
+    function sortedByOrder(arr) {
+      return arr.slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+    }
+    function addTabButton(tabId, label, active) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tab-btn' + (active ? ' active' : '');
+      btn.dataset.tab = tabId;
+      btn.textContent = label;
+      tabBar.appendChild(btn);
+      return btn;
+    }
+    function addCategoryRow(tabId, title, items, type) {
+      var row = buildPosterRow(title, items, type);
+      row.dataset.tab = tabId;
+      rowsContainer.appendChild(row);
+    }
+
+    addTabButton('all', 'All Shows & Channels', true);
+
+    SHOW_CATEGORIES.forEach(function(cat) {
+      var tabId = 'show-cat-' + cat.key;
+      CATEGORY_TABS.push(tabId);
+      addTabButton(tabId, cat.label, false);
+      addCategoryRow(tabId, cat.label,
+        sortedByOrder(SHOWS.filter(function(s) { return s.category === cat.key; })).map(toPosterItem), 'show');
+    });
+    CHANNEL_CATEGORIES.forEach(function(cat) {
+      var tabId = 'channel-cat-' + cat.key;
+      CATEGORY_TABS.push(tabId);
+      addTabButton(tabId, cat.label, false);
+      addCategoryRow(tabId, cat.label,
+        sortedByOrder(CHANNELS.filter(function(c) { return c.category === cat.key; })).map(toPosterItem), 'channel');
+    });
+
+    addTabButton('bookmarks', '★ Bookmarks', false);
+    addTabButton('playlists', 'My Playlists', false);
+
+    /* ── Bookmarks / My Playlists tab rendering ── */
+    function clearUserSections(kind) {
+      document.querySelectorAll('[data-user-section="' + kind + '"]').forEach(function(el){ el.remove(); });
+    }
+    function buildPromptSection(tab, message) {
+      var section = document.createElement('div');
+      section.className = 'stream-section';
+      section.dataset.tab = tab;
+      section.dataset.userSection = tab;
+      var body = document.createElement('div');
+      body.className = 'empty-state';
+      body.innerHTML = message;
+      section.appendChild(body);
+      return section;
+    }
+
+    function renderBookmarksTab() {
+      clearUserSections('bookmarks');
+      var container = document.getElementById('sections-container');
+      if (!getSession()) {
+        container.appendChild(buildPromptSection('bookmarks', 'Log in to save and view your bookmarked shows, channels, and videos.'));
+        applyTabFilter();
+        return;
+      }
+      var shows = getShowBookmarksArray();
+      var videos = getBookmarksArray();
+      if (!shows.length && !videos.length) {
+        container.appendChild(buildPromptSection('bookmarks', 'Nothing bookmarked yet — click the \u2605 on a show, channel, or video to save it here.'));
+        applyTabFilter();
+        return;
+      }
+      if (shows.length) {
+        var showsRow = buildPosterRow('\u2605 Bookmarked Shows & Channels', shows, 'show');
+        showsRow.dataset.tab = 'bookmarks';
+        showsRow.dataset.userSection = 'bookmarks';
+        container.appendChild(showsRow);
+      }
+      if (videos.length) {
+        var built = buildSection('\u2605 Bookmarked Videos', null, null, 'bookmarks');
+        built.section.dataset.userSection = 'bookmarks';
+        container.appendChild(built.section);
+        setupPagedSection(built, localLoader(videos), 'No bookmarked videos.');
+      }
+      applyTabFilter();
+    }
+
+    function renderPlaylistsTab() {
+      clearUserSections('playlists');
+      var container = document.getElementById('sections-container');
+      if (!getSession()) {
+        container.appendChild(buildPromptSection('playlists', 'Log in to create and view your playlists.'));
+        applyTabFilter();
+        return;
+      }
+      var names = getPlaylistNames();
+      if (!names.length) {
+        container.appendChild(buildPromptSection('playlists', 'You don\u2019t have any playlists yet — click the + icon on any video to create one.'));
+        applyTabFilter();
+        return;
+      }
+      names.forEach(function(name) {
+        var built = buildSection(name, null, null, 'playlists', {
+          onDelete: function() {
+            if (confirm('Delete playlist "' + name + '"?')) deletePlaylist(name);
+          }
+        });
+        built.section.dataset.userSection = 'playlists';
+        container.appendChild(built.section);
+        setupPagedSection(built, localLoader(getPlaylistArray(name)), 'This playlist is empty.');
+      });
+      applyTabFilter();
+    }
+
+    /* ── Tab filtering ── */
+    function applyTabFilter() {
+      var activeBtn = document.querySelector('.tab-btn.active');
+      var tab = activeBtn ? activeBtn.dataset.tab : 'all';
+      document.querySelectorAll('.stream-section, .netflix-row').forEach(function(s) {
+        var sTab = s.dataset.tab;
+        if (!sTab) return;
+        var show = (tab === 'all') ? (CATEGORY_TABS.indexOf(sTab) !== -1) : (sTab === tab);
+        s.style.display = show ? '' : 'none';
+      });
+    }
+    document.getElementById('tab-bar').addEventListener('click', function(e) {
+      var btn = e.target.closest('.tab-btn');
+      if (!btn) return;
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      applyTabFilter();
+    });
+
+    /* ── Hooks called by stream-common.js on bookmark/playlist/auth changes ── */
+    function onAuthChangedPage()     { renderBookmarksTab(); renderPlaylistsTab(); }
+    function onBookmarksChanged()    { renderBookmarksTab(); }
+    function onShowBookmarksChanged(){ renderBookmarksTab(); }
+    function onPlaylistsChanged()    { renderPlaylistsTab(); }
+
+    // Jump straight to a tab if linked from another page (e.g. /Browse/#bookmarks)
+    if (window.location.hash === '#bookmarks') activateTab('bookmarks');
+    else if (window.location.hash === '#playlists') activateTab('playlists');
+
+    renderAuthArea();
+    renderBookmarksTab();
+    renderPlaylistsTab();
+    applyTabFilter();
+  </script>
+</body>
+</html>
