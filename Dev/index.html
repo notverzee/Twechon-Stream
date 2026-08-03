@@ -209,22 +209,23 @@
     var ghStatus = document.getElementById('dev-github-status');
     var ghTokenInput = document.getElementById('dev-github-token');
     var zipPublishBtn = document.getElementById('dev-zip-publish-btn');
-    var scPublishBtn = document.getElementById('dev-sc-publish-btn');
 
     function refreshGithubUI() {
+      var zipBtn = document.getElementById('dev-zip-publish-btn');
+      var scBtn = document.getElementById('dev-sc-publish-btn'); // may not exist yet — Shows & Channels tab builds it lazily
       if (!hasGithubConfig()) {
         ghDesc.innerHTML = 'Not set up yet — open <code>stream-common.js</code> and fill in <code>GITHUB_OWNER</code> and <code>GITHUB_REPO</code> near the top (your GitHub username and this repo\u2019s name) to enable direct publishing. The zip-download buttons below work fine either way.';
         ghInputRow.style.display = 'none';
         ghConnectedRow.style.display = 'none';
-        zipPublishBtn.style.display = 'none';
-        scPublishBtn.style.display = 'none';
+        if (zipBtn) zipBtn.style.display = 'none';
+        if (scBtn) scBtn.style.display = 'none';
         return;
       }
       var hasToken = !!getGithubToken();
       ghInputRow.style.display = hasToken ? 'none' : '';
       ghConnectedRow.style.display = hasToken ? '' : 'none';
-      zipPublishBtn.style.display = hasToken ? '' : 'none';
-      scPublishBtn.style.display = hasToken ? '' : 'none';
+      if (zipBtn) zipBtn.style.display = hasToken ? '' : 'none';
+      if (scBtn) scBtn.style.display = hasToken ? '' : 'none';
     }
     document.getElementById('dev-github-save-btn').addEventListener('click', function() {
       var token = ghTokenInput.value.trim();
@@ -719,6 +720,7 @@
           '</div>';
 
         wireShowsChannelsManager();
+        refreshGithubUI();
       }
       renderScCategories();
       renderReorderList();
@@ -1099,6 +1101,7 @@
         });
       });
 
+      var scPublishBtn = document.getElementById('dev-sc-publish-btn'); // exists now — this runs after root.innerHTML above
       scPublishBtn.addEventListener('click', function() {
         var status = document.getElementById('dev-sc-zip-status');
         var token = getGithubToken();
