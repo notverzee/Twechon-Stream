@@ -47,6 +47,26 @@
         <button type="button" class="settings-btn" id="dev-lock-btn">Lock</button>
       </div>
 
+      <div class="settings-card" id="dev-github-card" style="max-width:720px;">
+        <div class="settings-card-title">🚀 GitHub Publishing <span style="font-weight:400;text-transform:none;font-size:.78rem;color:var(--muted);">(optional)</span></div>
+        <div class="settings-card-desc" id="dev-github-desc">
+          Paste a GitHub Personal Access Token here to enable a "Publish to GitHub" button next to each Download ZIP button below —
+          it commits the files straight to this repo instead of you downloading and re-uploading them by hand. Use a
+          <b>fine-grained</b> token scoped to <b>only this repo</b>, with <b>only "Contents: Read and write"</b> permission — nothing else.
+          The token is held only for this browser tab's session (never saved to a file, never leaves your browser except to talk to
+          GitHub directly) — you'll need to paste it in again next time. The zip-download buttons still work with or without this.
+        </div>
+        <div class="settings-row" id="dev-github-input-row">
+          <input type="password" id="dev-github-token" placeholder="github_pat_…" style="flex:1;min-width:220px;font-family:inherit;font-size:.86rem;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;outline:none;">
+          <button type="button" class="settings-btn primary" id="dev-github-save-btn">Save for This Session</button>
+        </div>
+        <div class="settings-row" id="dev-github-connected-row" style="display:none;">
+          <span style="font-size:.82rem;color:#4ade80;">✓ Token saved for this session.</span>
+          <button type="button" class="settings-btn" id="dev-github-clear-btn">Forget Token</button>
+        </div>
+        <div class="settings-status" id="dev-github-status"></div>
+      </div>
+
       <div class="tab-bar" id="dev-tab-bar">
         <button type="button" class="tab-btn active" data-devtab="newsletters">📰 Newsletters</button>
         <button type="button" class="tab-btn" data-devtab="shows-channels">🎬 Shows &amp; Channels</button>
@@ -75,7 +95,10 @@
           includes a flat, conveniently-named copy of each article (e.g. <code>Season 2 In Production.html</code>) for your own reference.
           Only slots with a headline, short description, full description, link, and image filled in are included.
         </div>
-        <div class="settings-row"><button type="button" class="settings-btn primary" id="dev-zip-btn">Download All as ZIP</button></div>
+        <div class="settings-row">
+          <button type="button" class="settings-btn primary" id="dev-zip-btn">Download All as ZIP</button>
+          <button type="button" class="settings-btn" id="dev-zip-publish-btn" style="display:none;">🚀 Publish to GitHub</button>
+        </div>
         <div class="settings-status" id="dev-zip-status"></div>
       </div>
 
@@ -157,8 +180,16 @@
       buildShowsChannelsManager();
     }
     function tryUnlock() {
-      if (unlockDev(passInput.value)) { gateError.textContent = ''; showPanel(); }
-      else { gateError.textContent = 'Wrong passcode.'; passInput.value = ''; passInput.focus(); }
+      var unlockBtn = document.getElementById('dev-unlock-btn');
+      unlockBtn.disabled = true;
+      unlockDev(passInput.value).then(function(ok) {
+        unlockBtn.disabled = false;
+        if (ok) { gateError.textContent = ''; showPanel(); }
+        else { gateError.textContent = 'Wrong passcode.'; passInput.value = ''; passInput.focus(); }
+      }).catch(function() {
+        unlockBtn.disabled = false;
+        gateError.textContent = 'Something went wrong checking that — try again.';
+      });
     }
     document.getElementById('dev-unlock-btn').addEventListener('click', tryUnlock);
     passInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') tryUnlock(); });
@@ -169,6 +200,47 @@
       passInput.value = '';
       passInput.focus();
     });
+
+    /* ── GitHub Publishing card ── */
+    var ghCard = document.getElementById('dev-github-card');
+    var ghDesc = document.getElementById('dev-github-desc');
+    var ghInputRow = document.getElementById('dev-github-input-row');
+    var ghConnectedRow = document.getElementById('dev-github-connected-row');
+    var ghStatus = document.getElementById('dev-github-status');
+    var ghTokenInput = document.getElementById('dev-github-token');
+    var zipPublishBtn = document.getElementById('dev-zip-publish-btn');
+    var scPublishBtn = document.getElementById('dev-sc-publish-btn');
+
+    function refreshGithubUI() {
+      if (!hasGithubConfig()) {
+        ghDesc.innerHTML = 'Not set up yet — open <code>stream-common.js</code> and fill in <code>GITHUB_OWNER</code> and <code>GITHUB_REPO</code> near the top (your GitHub username and this repo\u2019s name) to enable direct publishing. The zip-download buttons below work fine either way.';
+        ghInputRow.style.display = 'none';
+        ghConnectedRow.style.display = 'none';
+        zipPublishBtn.style.display = 'none';
+        scPublishBtn.style.display = 'none';
+        return;
+      }
+      var hasToken = !!getGithubToken();
+      ghInputRow.style.display = hasToken ? 'none' : '';
+      ghConnectedRow.style.display = hasToken ? '' : 'none';
+      zipPublishBtn.style.display = hasToken ? '' : 'none';
+      scPublishBtn.style.display = hasToken ? '' : 'none';
+    }
+    document.getElementById('dev-github-save-btn').addEventListener('click', function() {
+      var token = ghTokenInput.value.trim();
+      if (!token) { ghStatus.textContent = 'Paste a token first.'; ghStatus.className = 'settings-status err'; return; }
+      setGithubToken(token);
+      ghTokenInput.value = '';
+      ghStatus.textContent = 'Saved for this session.';
+      ghStatus.className = 'settings-status ok';
+      refreshGithubUI();
+    });
+    document.getElementById('dev-github-clear-btn').addEventListener('click', function() {
+      clearGithubToken();
+      ghStatus.textContent = '';
+      refreshGithubUI();
+    });
+    refreshGithubUI();
 
     document.getElementById('dev-tab-bar').addEventListener('click', function(e) {
       var btn = e.target.closest('.tab-btn');
@@ -415,18 +487,11 @@
     }
 
     /* ── Download everything as one ZIP, mirroring the live site layout ── */
-    document.getElementById('dev-zip-btn').addEventListener('click', function() {
-      var zipStatus = document.getElementById('dev-zip-status');
-      if (typeof JSZip === 'undefined') {
-        zipStatus.textContent = 'Could not load the zip library — check your internet connection and try again.';
-        zipStatus.className = 'settings-status err';
-        return;
-      }
+    // Shared by both the ZIP button and the GitHub Publish button — returns
+    // [{ path, content, isBase64 }, ...] for every filled-in slot.
+    function buildNewsletterFileList() {
       var draft = loadDraft();
-      var zip = new JSZip();
-      var newsFolder = zip.folder('assets').folder('news');
-      var includedCount = 0;
-
+      var files = [];
       SLOTS.forEach(function(slot) {
         var s = draft[slot.key];
         if (!s) return;
@@ -435,25 +500,49 @@
         if (!hasBanner && !hasArticle) return;
 
         if (hasBanner) {
-          newsFolder.file(slot.txtFile, s.title.trim() + '\n' + s.description.trim() + '\n' + s.link.trim() + '\n');
+          files.push({
+            path: 'assets/news/' + slot.txtFile,
+            content: s.title.trim() + '\n' + s.description.trim() + '\n' + s.link.trim() + '\n',
+            isBase64: false
+          });
         }
         if (s.imageDataUrl) {
-          var base64 = s.imageDataUrl.split(',')[1];
-          newsFolder.file(slot.imgFile, base64, { base64: true });
+          files.push({ path: 'assets/news/' + slot.imgFile, content: s.imageDataUrl.split(',')[1], isBase64: true });
         }
         if (hasArticle) {
-          var html = buildArticleHtml(slot, s);
-          zip.folder('news').folder(String(slot.num)).file('index.html', html);
-          zip.file(s.title.trim() + '.html', html); // flat, title-named copy for reference
+          files.push({ path: 'news/' + slot.num + '/index.html', content: buildArticleHtml(slot, s), isBase64: false });
         }
-        includedCount++;
       });
+      return files;
+    }
 
-      if (!includedCount) {
+    document.getElementById('dev-zip-btn').addEventListener('click', function() {
+      var zipStatus = document.getElementById('dev-zip-status');
+      if (typeof JSZip === 'undefined') {
+        zipStatus.textContent = 'Could not load the zip library — check your internet connection and try again.';
+        zipStatus.className = 'settings-status err';
+        return;
+      }
+      var files = buildNewsletterFileList();
+      if (!files.length) {
         zipStatus.textContent = 'Nothing to zip yet — fill in at least one slot first.';
         zipStatus.className = 'settings-status err';
         return;
       }
+
+      var zip = new JSZip();
+      var draftForNames = loadDraft();
+      files.forEach(function(f) {
+        zip.file(f.path, f.content, f.isBase64 ? { base64: true } : undefined);
+      });
+      // Flat, title-named copies of each article for your own reference —
+      // not part of the site, so these aren't included in GitHub Publish.
+      SLOTS.forEach(function(slot) {
+        var s = draftForNames[slot.key];
+        if (s && s.title && s.title.trim() && s.fullDescription && s.fullDescription.trim() && s.link && s.link.trim()) {
+          zip.file(s.title.trim() + '.html', buildArticleHtml(slot, s));
+        }
+      });
 
       zip.generateAsync({ type: 'blob' }).then(function(blob) {
         var url = URL.createObjectURL(blob);
@@ -465,6 +554,32 @@
         zipStatus.className = 'settings-status ok';
       }).catch(function() {
         zipStatus.textContent = 'Something went wrong building the zip — try again.';
+        zipStatus.className = 'settings-status err';
+      });
+    });
+
+    zipPublishBtn.addEventListener('click', function() {
+      var zipStatus = document.getElementById('dev-zip-status');
+      var token = getGithubToken();
+      if (!token) { zipStatus.textContent = 'Save a GitHub token above first.'; zipStatus.className = 'settings-status err'; return; }
+      var files = buildNewsletterFileList();
+      if (!files.length) {
+        zipStatus.textContent = 'Nothing to publish yet — fill in at least one slot first.';
+        zipStatus.className = 'settings-status err';
+        return;
+      }
+      zipPublishBtn.disabled = true;
+      zipStatus.textContent = 'Publishing 0 / ' + files.length + '\u2026';
+      zipStatus.className = 'settings-status';
+      githubPublishFiles(files, token, 'Publish newsletter', function(done, total, path) {
+        zipStatus.textContent = 'Publishing ' + done + ' / ' + total + '\u2026 (' + path + ')';
+      }).then(function() {
+        zipPublishBtn.disabled = false;
+        zipStatus.textContent = 'Published! GitHub Pages will rebuild automatically \u2014 give it a minute, then check the live site.';
+        zipStatus.className = 'settings-status ok';
+      }).catch(function(err) {
+        zipPublishBtn.disabled = false;
+        zipStatus.textContent = 'Publish failed: ' + (err && err.message ? err.message : 'try again.') + ' (Anything already published before the failure is live \u2014 only what came after it is missing.)';
         zipStatus.className = 'settings-status err';
       });
     });
@@ -597,6 +712,7 @@
             '</div>' +
             '<div class="settings-row">' +
               '<button type="button" class="settings-btn primary" id="dev-sc-zip-btn">Download Updated stream-common.js + Assets</button>' +
+              '<button type="button" class="settings-btn" id="dev-sc-publish-btn" style="display:none;">🚀 Publish to GitHub</button>' +
               '<button type="button" class="settings-btn" id="dev-sc-clear-btn">Clear Pending Draft</button>' +
             '</div>' +
             '<div class="settings-status" id="dev-sc-zip-status"></div>' +
@@ -896,30 +1012,30 @@
         renderScPending();
       });
 
-      document.getElementById('dev-sc-zip-btn').addEventListener('click', function() {
-        var status = document.getElementById('dev-sc-zip-status');
+      // Shared validation — returns null (and shows the error) if not ready
+      // to package, otherwise returns the pending draft.
+      function validateScDraft(status) {
         var d = loadScDraft();
         var orderEditKeys = Object.keys(d.orderEdits);
         if (!d.categories.length && !d.entries.length && !orderEditKeys.length) {
           status.textContent = 'Nothing to package yet — add a category, a show/channel, or change an order number first.';
           status.className = 'settings-status err';
-          return;
+          return null;
         }
         var conflicts = findOrderConflicts();
         if (conflicts.length) {
           status.textContent = 'Fix the highlighted order conflicts first (' + conflicts.join(', ') + ' — two entries share the same number).';
           status.className = 'settings-status err';
-          return;
+          return null;
         }
-        if (typeof JSZip === 'undefined') {
-          status.textContent = 'Could not load the zip library — check your internet connection and try again.';
-          status.className = 'settings-status err';
-          return;
-        }
-        status.textContent = 'Fetching current stream-common.js\u2026';
-        status.className = 'settings-status';
+        return d;
+      }
 
-        fetch('/stream-common.js').then(function(r) {
+      // Fetches the live stream-common.js and returns a Promise resolving to
+      // { updatedSource, files } — files is everything else (logos/posters)
+      // that needs to go alongside it, as [{ path, content, isBase64 }, ...].
+      function buildScUpdate(d) {
+        return fetch('/stream-common.js').then(function(r) {
           if (!r.ok) throw new Error('Could not fetch the live stream-common.js');
           return r.text();
         }).then(function(source) {
@@ -934,19 +1050,39 @@
           if (newShows) { updated = injectOrThrow(updated, 'SHOWS', newShows); }
           if (newChannels) { updated = injectOrThrow(updated, 'CHANNELS', newChannels); }
 
-          orderEditKeys.forEach(function(slug) {
+          Object.keys(d.orderEdits).forEach(function(slug) {
             var result = replaceOrderForSlug(updated, slug, d.orderEdits[slug]);
             if (result === null) throw new Error('Could not find "' + slug + '" in stream-common.js to update its order — was it renamed?');
             updated = result;
           });
 
-          var zip = new JSZip();
-          zip.file('stream-common.js', updated);
-          var assetsFolder = zip.folder('assets');
-          var postersFolder = assetsFolder.folder('posters');
+          var files = [];
           d.entries.forEach(function(e) {
-            if (e.logoDataUrl) assetsFolder.file(e.logoFile, e.logoDataUrl.split(',')[1], { base64: true });
-            if (e.posterDataUrl) postersFolder.file(e.posterFile, e.posterDataUrl.split(',')[1], { base64: true });
+            if (e.logoDataUrl) files.push({ path: 'assets/' + e.logoFile, content: e.logoDataUrl.split(',')[1], isBase64: true });
+            if (e.posterDataUrl) files.push({ path: 'assets/posters/' + e.posterFile, content: e.posterDataUrl.split(',')[1], isBase64: true });
+          });
+
+          return { updatedSource: updated, files: files };
+        });
+      }
+
+      document.getElementById('dev-sc-zip-btn').addEventListener('click', function() {
+        var status = document.getElementById('dev-sc-zip-status');
+        var d = validateScDraft(status);
+        if (!d) return;
+        if (typeof JSZip === 'undefined') {
+          status.textContent = 'Could not load the zip library — check your internet connection and try again.';
+          status.className = 'settings-status err';
+          return;
+        }
+        status.textContent = 'Fetching current stream-common.js\u2026';
+        status.className = 'settings-status';
+
+        buildScUpdate(d).then(function(result) {
+          var zip = new JSZip();
+          zip.file('stream-common.js', result.updatedSource);
+          result.files.forEach(function(f) {
+            zip.file(f.path, f.content, f.isBase64 ? { base64: true } : undefined);
           });
           return zip.generateAsync({ type: 'blob' });
         }).then(function(blob) {
@@ -959,6 +1095,33 @@
           status.className = 'settings-status ok';
         }).catch(function(err) {
           status.textContent = 'Something went wrong: ' + (err && err.message ? err.message : 'try again.');
+          status.className = 'settings-status err';
+        });
+      });
+
+      scPublishBtn.addEventListener('click', function() {
+        var status = document.getElementById('dev-sc-zip-status');
+        var token = getGithubToken();
+        if (!token) { status.textContent = 'Save a GitHub token above first.'; status.className = 'settings-status err'; return; }
+        var d = validateScDraft(status);
+        if (!d) return;
+
+        status.textContent = 'Fetching current stream-common.js\u2026';
+        status.className = 'settings-status';
+        scPublishBtn.disabled = true;
+
+        buildScUpdate(d).then(function(result) {
+          var allFiles = [{ path: 'stream-common.js', content: result.updatedSource, isBase64: false }].concat(result.files);
+          return githubPublishFiles(allFiles, token, 'Publish shows/channels update', function(done, total, path) {
+            status.textContent = 'Publishing ' + done + ' / ' + total + '\u2026 (' + path + ')';
+          });
+        }).then(function() {
+          scPublishBtn.disabled = false;
+          status.textContent = 'Published! GitHub Pages will rebuild automatically \u2014 give it a minute, then check the live site. You can Clear Pending Draft now.';
+          status.className = 'settings-status ok';
+        }).catch(function(err) {
+          scPublishBtn.disabled = false;
+          status.textContent = 'Publish failed: ' + (err && err.message ? err.message : 'try again.') + ' (Anything already published before the failure is live \u2014 only what came after it is missing.)';
           status.className = 'settings-status err';
         });
       });

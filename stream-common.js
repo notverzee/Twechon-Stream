@@ -17,14 +17,29 @@
 ══════════════════════════════════════════════════════════ */
 var YT_API_KEY = 'AIzaSyAAZe4Gh8Gutbmh6Mm-wzuiXMw4Sye0_M4'; // ← paste your YouTube Data API v3 key here
 
-// Developer Mode passcode — gates the Dev/ page, which isn't linked
-// anywhere in the site nav (reach it by going to /Dev/ directly).
-// This only blocks casual visitors, not a determined one — anyone
-// can view this file's source and read the passcode. Don't use it
-// to protect anything you actually need secured; it just keeps the
-// news editor out of everyday visitors' way. Change it to whatever
-// you like.
-var DEV_PASSCODE = 'twechon-dev';
+// Developer Mode passcode — stored as a SHA-256 hash instead of
+// plain text, so casual viewing of this file's source doesn't hand
+// someone the actual passcode outright. This is still NOT real
+// security — a determined person could brute-force a short passcode
+// offline once they have the hash — but it closes the trivial "just
+// read the variable" case. Don't use it to protect anything you
+// actually need secured.
+//
+// To set a new passcode: open any browser's console and run
+//   crypto.subtle.digest('SHA-256', new TextEncoder().encode('yourNewPasscode'))
+//     .then(b => console.log([...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join('')))
+// then paste the printed hash below. The current hash is for
+// 'twechon-dev' (the old default).
+var DEV_PASSCODE_HASH = '123acf928b00aac44267339c17230a9dfd0181ef66b2d68664cf9b2ee8c37a8b';
+
+// GitHub repo this site lives in — used only by the optional
+// "Publish to GitHub" button in Dev Mode, to commit new/updated
+// files directly instead of downloading a zip to upload by hand.
+// Fill in your GitHub username and this repo's name, exactly as
+// they appear in the repo's URL: github.com/<owner>/<repo>.
+var GITHUB_OWNER = 'YOUR-GITHUB-USERNAME';
+var GITHUB_REPO = 'YOUR-REPO-NAME';
+var GITHUB_BRANCH = 'main';
 
 var MAX_RESULTS = 10; // videos per page (5×2 grid on show pages)
 
@@ -575,16 +590,95 @@ function requireLogin() {
 }
 
 /* ── Developer Mode unlock (Dev/index.html) ──
-   Kept dead simple: correct passcode flips a sessionStorage flag,
-   cleared automatically when the tab/browser closes. */
+   Correct passcode flips a sessionStorage flag, cleared automatically
+   when the tab/browser closes. unlockDev() is now async (it hashes
+   the entered passcode before comparing), so callers need to use
+   .then() or await — see Dev/index.html's tryUnlock(). */
 var DEV_SESSION_KEY = 'twechon_dev_unlocked';
 function isDevUnlocked() { return sessionStorage.getItem(DEV_SESSION_KEY) === '1'; }
+function sha256Hex(text) {
+  return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function(buf) {
+    return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+  });
+}
 function unlockDev(passcode) {
-  if (passcode !== DEV_PASSCODE) return false;
-  sessionStorage.setItem(DEV_SESSION_KEY, '1');
-  return true;
+  return sha256Hex(passcode).then(function(hash) {
+    if (hash !== DEV_PASSCODE_HASH) return false;
+    sessionStorage.setItem(DEV_SESSION_KEY, '1');
+    return true;
+  });
 }
 function lockDev() { sessionStorage.removeItem(DEV_SESSION_KEY); }
+
+/* ── GitHub direct-publish (optional) ──
+   Lets Dev Mode commit files straight to this repo via GitHub's API,
+   instead of downloading a zip to upload by hand. Requires a
+   fine-grained Personal Access Token scoped to ONLY this repo, with
+   ONLY "Contents: Read and write" permission — nothing else. You
+   paste it in fresh each Dev Mode session; it's held in
+   sessionStorage (cleared the moment the tab closes) and is never
+   written into any file, so it never ends up in this public repo.
+   The zip-download workflow still works too — this is an additional
+   option, not a replacement.
+   Note: GitHub's simple Contents API commits one file at a time, so
+   publishing several files at once creates several commits rather
+   than one atomic commit — harmless, just a bit more commit history
+   than a single "real" commit would have. */
+var GITHUB_TOKEN_KEY = 'twechon_dev_gh_token';
+function getGithubToken() { return sessionStorage.getItem(GITHUB_TOKEN_KEY) || ''; }
+function setGithubToken(token) { sessionStorage.setItem(GITHUB_TOKEN_KEY, token); }
+function clearGithubToken() { sessionStorage.removeItem(GITHUB_TOKEN_KEY); }
+function hasGithubConfig() {
+  return GITHUB_OWNER && GITHUB_OWNER.indexOf('YOUR-') !== 0 && GITHUB_REPO && GITHUB_REPO.indexOf('YOUR-') !== 0;
+}
+
+function githubGetFileSha(path, token) {
+  return fetch('https://api.github.com/repos/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/contents/' + path + '?ref=' + GITHUB_BRANCH, {
+    headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' }
+  }).then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) { return data ? data.sha : null; })
+    .catch(function() { return null; });
+}
+
+// content: raw text OR a base64 string (set isBase64 true for images)
+function githubPutFile(path, content, isBase64, token, commitMessage) {
+  var base64Content = isBase64 ? content : btoa(unescape(encodeURIComponent(content)));
+  return githubGetFileSha(path, token).then(function(sha) {
+    var body = { message: commitMessage, content: base64Content, branch: GITHUB_BRANCH };
+    if (sha) body.sha = sha;
+    return fetch('https://api.github.com/repos/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/contents/' + path, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    }).then(function(r) {
+      if (!r.ok) return r.json().then(function(err) { throw new Error((err && err.message) || ('GitHub API error ' + r.status)); });
+      return r.json();
+    });
+  });
+}
+
+// files: [{ path, content, isBase64 }, ...] — published one at a time,
+// in order, so a failure partway through leaves earlier files already
+// committed rather than losing everything. onProgress(done, total, path)
+// fires after each successful commit.
+function githubPublishFiles(files, token, commitMessagePrefix, onProgress) {
+  var done = 0;
+  function next(i) {
+    if (i >= files.length) return Promise.resolve();
+    var f = files[i];
+    return githubPutFile(f.path, f.content, f.isBase64, token, commitMessagePrefix + ': ' + f.path)
+      .then(function() {
+        done++;
+        if (onProgress) onProgress(done, files.length, f.path);
+        return next(i + 1);
+      });
+  }
+  return next(0);
+}
 
 function formatTime(seconds) {
   seconds = Math.max(0, Math.floor(seconds || 0));

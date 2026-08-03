@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap');
 
     /* ── Tokens ── */
     :root {
@@ -27,8 +28,6 @@
       min-height: 100vh;
       overflow-x: hidden;
     }
-
-    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap');
 
     /* ── Star canvas ── */
     #star-canvas {
