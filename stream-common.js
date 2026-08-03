@@ -37,8 +37,8 @@ var DEV_PASSCODE_HASH = '123acf928b00aac44267339c17230a9dfd0181ef66b2d68664cf9b2
 // files directly instead of downloading a zip to upload by hand.
 // Fill in your GitHub username and this repo's name, exactly as
 // they appear in the repo's URL: github.com/<owner>/<repo>.
-var GITHUB_OWNER = 'YOUR-GITHUB-USERNAME';
-var GITHUB_REPO = 'YOUR-REPO-NAME';
+var GITHUB_OWNER = 'notverzee';
+var GITHUB_REPO = 'Twechon-Stream';
 var GITHUB_BRANCH = 'main';
 
 var MAX_RESULTS = 10; // videos per page (5×2 grid on show pages)
